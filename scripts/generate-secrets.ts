@@ -15,6 +15,7 @@ const has = (name: string) => new RegExp(`^${name}=.+`, "m").test(current);
 const wanted: Record<string, () => string> = {
   CODE_PEPPER: () => randomBytes(32).toString("base64"),
   CODE_ENCRYPTION_KEY: () => randomBytes(32).toString("base64"),
+  SHIP_INTERNAL_SECRET: () => randomBytes(32).toString("base64"),
 };
 
 const added: string[] = [];

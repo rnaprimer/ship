@@ -173,3 +173,11 @@ export function samplePassengers(shipId: string, excludePlayerId: string | null,
     z.array(z.object({ username: z.string(), character_variant: z.number().int() })),
   );
 }
+
+export function recordInviteDelivery(shipId: string, invitationId: string, outcome: "delivered" | "unconfirmed" | "failed") {
+  return call(
+    "record_invite_delivery",
+    { p_ship_id: shipId, p_invitation_id: invitationId, p_outcome: outcome },
+    z.boolean(),
+  );
+}

@@ -3,8 +3,9 @@
 The ship app: redeem a boarding code, pick a username, and walk around a 2D
 pixel-art ship. See `../docs/BRIEF.md` and `../docs/PLAN.md`.
 
-**Status: Milestone 2 (boarding).** Codes are minted by a CLI for now.
-OpenReply and Instagram DMs come in Milestone 3.
+**Status: Milestone 3 (OpenReply).** Instagram comments reach the ship through
+our OpenReply fork (`../openreply`, see `lib/ship/README.md` there). Going live
+with a real Meta app is Milestone 4.
 
 ## Stack
 
@@ -81,6 +82,29 @@ Next.js blocks dev assets requested from other origins unless you set
   minutes.
 - **Code in transit:** the typed code is held in React memory between the two
   boarding pages. It's never written to storage or the URL.
+
+## OpenReply integration (Milestone 3)
+
+```
+OpenReply worker ── POST /internal/invites/issue ──────────▶ issue_invite()
+                 ◀── {status, invitation_id, boarding_code, ship_url}
+                 ── POST /internal/invites/delivery-status ▶ record_invite_delivery()
+```
+
+- **Authentication:** HMAC-SHA256 with `SHIP_INTERNAL_SECRET` over
+  `timestamp.body`, sent as `X-Ship-Timestamp` and `X-Ship-Signature`. The ship
+  rejects clock skew over 5 minutes and verifies in constant time. The contract
+  is `src/lib/internal/contract.ts`, copied verbatim to
+  `openreply/lib/ship/contract.ts`.
+- **Issue outcomes:**
+  - `issued`: a new code.
+  - `existing`: the same comment was retried, so the same code comes back.
+  - `active_elsewhere`: the person's unused code from another comment, re-sent.
+  - `already_boarded`, `paused` or `comment_used`: nothing to send.
+- **Re-sending:** the plaintext is only ever in the response. For a re-send,
+  the ship decrypts its AES-GCM copy, which is deleted once the code is
+  redeemed or expires.
+- **Delivery status** never downgrades: delivered > unconfirmed > failed.
 
 ## How it fits together
 

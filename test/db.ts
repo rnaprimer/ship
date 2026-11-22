@@ -9,6 +9,7 @@ import { generateCode, formatCode, hashCode } from "@/lib/boarding/code";
 import { aesGcmEncryptHex, base64ToBytes, bytesToHex } from "@/lib/security/crypto";
 
 export const hasDb = Boolean(
+  process.env.SHIP_INTERNAL_SECRET &&
   process.env.SUPABASE_URL && process.env.SUPABASE_SECRET_KEY && process.env.CODE_PEPPER && process.env.CODE_ENCRYPTION_KEY,
 );
 
@@ -89,3 +90,20 @@ export function cookieFrom(res: Response): string {
 }
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** A request to /internal/* signed the way OpenReply signs it. */
+export async function signedReq(
+  path: string,
+  body: unknown,
+  opts: { timestamp?: number; secret?: string; tamper?: boolean; rawBody?: string } = {},
+): Promise<Request> {
+  const raw = opts.rawBody ?? JSON.stringify(body);
+  const ts = String(opts.timestamp ?? Math.floor(Date.now() / 1000));
+  const { hmacSha256Hex } = await import("@/lib/security/crypto");
+  const sig = await hmacSha256Hex(base64ToBytes(opts.secret ?? process.env.SHIP_INTERNAL_SECRET!), `${ts}.${raw}`);
+  return new Request(`http://ship.internal${path}`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-ship-timestamp": ts, "x-ship-signature": sig },
+    body: opts.tamper ? raw.replace(/"}$/, 'x"}') : raw,
+  });
+}

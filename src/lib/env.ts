@@ -29,6 +29,10 @@ const serverEnvSchema = z.object({
   CODE_PEPPER: base64Key(32),
   /** AES-256-GCM key for the temporarily stored (re-sendable) code ciphertext. */
   CODE_ENCRYPTION_KEY: base64Key(32, 32),
+  /** Shared with OpenReply to sign /internal/* requests (base64, >= 32 bytes). */
+  SHIP_INTERNAL_SECRET: base64Key(32).optional(),
+  /** Public origin of this site, used for the link in boarding DMs (e.g. https://ship.example.com). */
+  SHIP_PUBLIC_URL: z.url().optional(),
   /** Which ship this deployment serves. Tests use throwaway ships. */
   SHIP_ID: z.string().regex(/^[a-z0-9_-]{1,40}$/).default("main"),
 });
@@ -44,6 +48,8 @@ export function serverEnv(): ServerEnv {
     SUPABASE_SECRET_KEY: process.env.SUPABASE_SECRET_KEY,
     CODE_PEPPER: process.env.CODE_PEPPER,
     CODE_ENCRYPTION_KEY: process.env.CODE_ENCRYPTION_KEY,
+    SHIP_INTERNAL_SECRET: process.env.SHIP_INTERNAL_SECRET || undefined,
+    SHIP_PUBLIC_URL: process.env.SHIP_PUBLIC_URL || undefined,
     SHIP_ID: process.env.SHIP_ID || undefined,
   });
   if (!parsed.success) {
@@ -61,4 +67,18 @@ export function secrets() {
     pepper: base64ToBytes(env.CODE_PEPPER),
     encryptionKey: base64ToBytes(env.CODE_ENCRYPTION_KEY),
   };
+}
+
+/** The OpenReply shared secret. Throws if unset, so /internal/* fails closed. */
+export function internalSecret(): Uint8Array {
+  const v = serverEnv().SHIP_INTERNAL_SECRET;
+  if (!v) throw new Error("SHIP_INTERNAL_SECRET is not set");
+  return base64ToBytes(v);
+}
+
+/** Where boarding DMs send people: SHIP_PUBLIC_URL + /board. */
+export function boardingUrl(): string {
+  const v = serverEnv().SHIP_PUBLIC_URL;
+  if (!v) throw new Error("SHIP_PUBLIC_URL is not set");
+  return new URL("/board", v).toString();
 }
