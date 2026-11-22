@@ -15,6 +15,12 @@ export type PassengerProfile = {
   characterVariant: number;
 };
 
+/** Where the player starts: their saved spot, or null for the spawn point. */
+export type StartPosition = { x: number; y: number; direction: Direction } | null;
+
+/** Called by the game to persist the position; `final` is true when the page is going away. */
+export type PositionSaver = (position: SavedPosition, final: boolean) => void;
+
 export type SavedPosition = {
   mapId: string;
   mapVersion: number;

@@ -12,7 +12,9 @@
     "test:watch": "vitest",
     "build:assets": "node scripts/build-ship-assets.ts",
     "start:lan": "next start --hostname 0.0.0.0",
-    "db:check": "node --env-file-if-exists=.env.local scripts/check-supabase.ts"
+    "db:check": "node --env-file-if-exists=.env.local scripts/check-supabase.ts",
+    "secrets:generate": "node scripts/generate-secrets.ts",
+    "invite:mint": "node --env-file-if-exists=.env.local scripts/mint-codes.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.2",

@@ -1,6 +1,6 @@
 import * as Phaser from "phaser";
 import type { GameBus } from "./events";
-import type { PassengerProfile, PlayerProfile } from "./types";
+import type { PassengerProfile, PlayerProfile, PositionSaver, StartPosition } from "./types";
 import { BootScene } from "./scenes/BootScene";
 import { PreloadScene } from "./scenes/PreloadScene";
 import { ShipScene } from "./scenes/ShipScene";
@@ -11,6 +11,8 @@ export type GameOptions = {
   bus: GameBus;
   player: PlayerProfile;
   passengers: PassengerProfile[];
+  initialPosition: StartPosition;
+  savePosition: PositionSaver;
 };
 
 export function createGame(options: GameOptions): Phaser.Game {
@@ -41,6 +43,8 @@ export function createGame(options: GameOptions): Phaser.Game {
         game.registry.set(REGISTRY.bus, options.bus);
         game.registry.set(REGISTRY.player, options.player);
         game.registry.set(REGISTRY.passengers, options.passengers);
+        game.registry.set(REGISTRY.initialPosition, options.initialPosition);
+        game.registry.set(REGISTRY.savePosition, options.savePosition);
       },
     },
     scene: [BootScene, PreloadScene, ShipScene],

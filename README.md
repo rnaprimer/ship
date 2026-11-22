@@ -3,8 +3,8 @@
 The ship app: redeem a boarding code, pick a username, and walk around a 2D
 pixel-art ship. See `../docs/BRIEF.md` and `../docs/PLAN.md`.
 
-**Status: Milestone 1 (ship prototype).** It uses a mock player and mock
-passengers. There's no backend yet, and positions are saved to localStorage.
+**Status: Milestone 2 (boarding).** Codes are minted by a CLI for now.
+OpenReply and Instagram DMs come in Milestone 3.
 
 ## Stack
 
@@ -25,8 +25,11 @@ Phaser 4 over Phaser 3: 4.x has been the stable line since April 2026, while
 
 ```bash
 npm install
-npm run dev            # http://localhost:3000/ship
-npm test               # unit tests
+npm run secrets:generate   # once: adds CODE_PEPPER / CODE_ENCRYPTION_KEY to .env.local
+npm run db:check           # checks SUPABASE_URL / SUPABASE_SECRET_KEY
+npm run invite:mint -- --count 3   # mint test boarding codes (prints them)
+npm run dev            # http://localhost:3000 → Board the ship
+npm test               # unit tests + database tests (against .env.local, on throwaway ships)
 npm run lint
 npm run typecheck
 npm run build:assets   # regenerate placeholder art, ship.json and walkable.json
@@ -46,12 +49,46 @@ Use the production build for phone testing. The dev server is slower, and
 Next.js blocks dev assets requested from other origins unless you set
 `allowedDevOrigins`.
 
+## Boarding (Milestone 2)
+
+```
+/board            code entry   → POST /api/boarding/validate  (never consumes)
+/board/username   name + look  → POST /api/boarding/redeem    (redeem_invite, one transaction)
+/ship             GET /api/me (401 → /board), GET /api/ship/passengers,
+                  POST /api/me/position (every 15 s if moved, sendBeacon on pagehide)
+                  POST /api/logout
+```
+
+- **Database:** `supabase/migrations/*_boarding_schema.sql` holds the tables
+  from PLAN §C plus the functions `check_invite`, `redeem_invite`,
+  `issue_invite`, `touch_session`, `revoke_session`, `save_position`,
+  `rate_limit_hit`, `rate_limit_count`, `sample_passengers` and
+  `passenger_count`. RLS is on with no policies. `anon` and `authenticated`
+  have no grants. Only the server's secret key can read tables or call
+  functions.
+- **Codes:** 16 Crockford base32 symbols (80 bits). The database stores
+  HMAC-SHA256(`CODE_PEPPER`, code) plus an AES-GCM copy, kept only until the
+  code is redeemed or expires. Codes are never logged.
+- **Sessions:** 32 random bytes in an HttpOnly, SameSite=Lax cookie (Secure
+  with the `__Host-` prefix over HTTPS). The database stores the SHA-256 only.
+  Sessions last 30 days with daily rolling renewal. Every POST checks Origin.
+- **Positions:** the server checks map version, walkability (the same
+  `walkable.json` the game uses), at most one save per second, and a speed
+  limit of 1.25 × walking speed × elapsed time + 48 px. The player always
+  comes from the session, never the request body.
+- **Rate limits:** each hashed IP gets 60 boarding requests and 10 wrong codes
+  per 10 minutes. A ship-wide breaker trips at 1,000 wrong codes per 10
+  minutes.
+- **Code in transit:** the typed code is held in React memory between the two
+  boarding pages. It's never written to storage or the URL.
+
 ## How it fits together
 
 ```
 src/app/ship/page.tsx            static page, renders <ShipExperience/>
 src/components/
-  ShipExperience.tsx             mock data + shared GameBus
+  ShipExperience.tsx             loads /api/me + passengers, shared GameBus
+  boarding/                      BoardingForm, UsernameForm, CharacterPicker
   GameCanvas.tsx                 'use client'; import("@/game/createGame") inside useEffect
   VirtualJoystick.tsx            floating touch joystick (touch/pen only)
   PlayerHUD.tsx                  welcome toast, area name, key hint, ?debug stats
@@ -63,7 +100,6 @@ src/game/
   systems/                       pure, unit-tested logic (no Phaser):
     walkability.ts               grid queries, foot-box check, BFS paths, areas
     movement.ts                  normalized velocity, facing, frame-rate-independent stepping
-    PositionPersistence.ts       mock save/restore with validation (→ /api/me/position in M2)
     zoom.ts                      integer zoom: 3× touch, 4× desktop
   maps/walkable.json             generated; will be shared with server-side validation in M2
 scripts/
@@ -91,5 +127,6 @@ for each of 6 variants.
 
 ## Environment variables
 
-None in Milestone 1. Milestone 2 adds the Supabase and session secrets. They
-must be documented in `.env.example` and never committed.
+See `.env.example`: `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `CODE_PEPPER`,
+`CODE_ENCRYPTION_KEY`, an optional `SHIP_ID`, and `SUPABASE_PUBLISHABLE_KEY`
+(tests only). Real values go in `.env.local`, which is never committed.

@@ -3,4 +3,6 @@ export const REGISTRY = {
   bus: "bus",
   player: "player",
   passengers: "passengers",
+  initialPosition: "initialPosition",
+  savePosition: "savePosition",
 } as const;

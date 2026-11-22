@@ -2,12 +2,11 @@ import * as Phaser from "phaser";
 import { ASSETS } from "./PreloadScene";
 import { REGISTRY } from "../registry";
 import type { GameBus } from "../events";
-import type { PassengerProfile, PlayerProfile, SavedPosition } from "../types";
+import type { PassengerProfile, PlayerProfile, PositionSaver, SavedPosition, StartPosition } from "../types";
 import { SHIP_MAP } from "../maps";
 import { Player } from "../entities/Player";
 import { AmbientPassenger } from "../entities/AmbientPassenger";
-import { areaAt, reachableFrom, tileOf } from "../systems/walkability";
-import { loadPosition, savePosition } from "../systems/PositionPersistence";
+import { areaAt, isFootprintWalkable, reachableFrom, tileOf } from "../systems/walkability";
 import { combineInput, JOYSTICK_DEADZONE, type Vec } from "../systems/movement";
 import { pickZoom } from "../systems/zoom";
 
@@ -75,9 +74,9 @@ export class ShipScene extends Phaser.Scene {
       .setDepth(DEPTH.foam);
 
     // --- Player ---
-    // Restore the last valid position, or use the spawn point (new player, or the map changed).
-    const saved = loadPosition(window.localStorage, SHIP_MAP);
-    const start = saved ?? SHIP_MAP.spawn;
+    // Restore the last valid position (validated by the server), or use the spawn point.
+    const saved = this.registry.get(REGISTRY.initialPosition) as StartPosition;
+    const start = saved && isFootprintWalkable(SHIP_MAP, saved.x, saved.y) ? saved : SHIP_MAP.spawn;
     this.player = new Player(this, start.x, start.y, profile.characterVariant, profile.username, start.direction);
     this.lastSaved = { x: start.x, y: start.y };
     this.physics.world.setBounds(0, 0, this.mapW, this.mapH);
@@ -109,12 +108,12 @@ export class ShipScene extends Phaser.Scene {
     }
     this.cleanup.push(this.bus.on("joystick", (v) => (this.stick = v)));
 
-    // --- Persistence (mock): every 15 s if moved, and when the page is hidden or closed ---
-    this.time.addEvent({ delay: 15_000, loop: true, callback: () => this.savePosition() });
+    // --- Persistence: every 15 s if moved, and when the page is hidden or closed ---
+    this.time.addEvent({ delay: 15_000, loop: true, callback: () => this.savePosition(false) });
     const onHide = () => {
-      if (document.visibilityState === "hidden") this.savePosition();
+      if (document.visibilityState === "hidden") this.savePosition(true);
     };
-    const onPageHide = () => this.savePosition();
+    const onPageHide = () => this.savePosition(true);
     document.addEventListener("visibilitychange", onHide);
     window.addEventListener("pagehide", onPageHide);
     this.cleanup.push(() => {
@@ -125,7 +124,7 @@ export class ShipScene extends Phaser.Scene {
     // Labels and y-sorting run after Arcade Physics has moved bodies this frame.
     this.events.on(Phaser.Scenes.Events.POST_UPDATE, this.afterPhysics, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      this.savePosition();
+      this.savePosition(true);
       this.events.off(Phaser.Scenes.Events.POST_UPDATE, this.afterPhysics, this);
       this.passengers.forEach((p) => p.destroy());
       this.passengers = [];
@@ -163,11 +162,17 @@ export class ShipScene extends Phaser.Scene {
       .map((p, i) => new AmbientPassenger(this, SHIP_MAP, candidates[i], p.characterVariant, p.username, Math.random));
   }
 
-  private savePosition() {
+  private savePosition(final: boolean) {
     const { x, y, direction } = this.player;
     if (Math.abs(x - this.lastSaved.x) < 1 && Math.abs(y - this.lastSaved.y) < 1) return;
-    const position: SavedPosition = { mapId: SHIP_MAP.mapId, mapVersion: SHIP_MAP.mapVersion, x, y, direction };
-    savePosition(window.localStorage, position);
+    const position: SavedPosition = {
+      mapId: SHIP_MAP.mapId,
+      mapVersion: SHIP_MAP.mapVersion,
+      x: Math.round(x),
+      y: Math.round(y),
+      direction,
+    };
+    (this.registry.get(REGISTRY.savePosition) as PositionSaver)(position, final);
     this.lastSaved = { x, y };
   }
 
