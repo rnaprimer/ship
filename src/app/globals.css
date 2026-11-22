@@ -1,26 +1,31 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-pixel: var(--font-press-start), ui-monospace, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+html,
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: #0b2a3d;
+  color: #f4ead5;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  overscroll-behavior: none;
+}
+
+/* Keep pixel art crisp when the browser scales the canvas to device pixels. */
+.game-canvas canvas {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  display: block;
+  touch-action: none;
+}
+
+/* Area name banner: fade in, hold, fade out. */
+@keyframes hud-fade {
+  0% { opacity: 0; transform: translateY(-4px); }
+  12%, 75% { opacity: 1; transform: none; }
+  100% { opacity: 0; }
+}
+.hud-fade {
+  animation: hud-fade 3s ease-out forwards;
 }

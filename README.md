@@ -1,36 +1,95 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# The Internet Ship
 
-## Getting Started
+The ship app: redeem a boarding code, pick a username, and walk around a 2D
+pixel-art ship. See `../docs/BRIEF.md` and `../docs/PLAN.md`.
 
-First, run the development server:
+**Status: Milestone 1 (ship prototype).** It uses a mock player and mock
+passengers. There's no backend yet, and positions are saved to localStorage.
+
+## Stack
+
+| Package | Version | Notes |
+| --- | --- | --- |
+| Next.js | 16.4.6 | App Router, Turbopack, `cacheComponents` (create-next-app default) |
+| React | 19.3 | |
+| Phaser | 4.2.1 | Loaded client-side only via `import()` in `GameCanvas` |
+| Tailwind CSS | 4.3 | |
+| Vitest | 5.1 | Unit tests in `src/**/*.test.ts` |
+| Node.js | 24 | Runs the asset script directly (built-in TypeScript type stripping) |
+
+Phaser 4 over Phaser 3: 4.x has been the stable line since April 2026, while
+3.x hasn't had a release since 3.90 (May 2025). The APIs this game uses
+(tilemaps, Arcade Physics, sprites, bitmap text) work the same way.
+
+## Commands
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev            # http://localhost:3000/ship
+npm test               # unit tests
+npm run lint
+npm run typecheck
+npm run build:assets   # regenerate placeholder art, ship.json and walkable.json
+npm run build && npm run start:lan   # production build, reachable from your phone
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Add `?debug` to the URL (`/ship?debug`) to show FPS and position.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Testing on a phone
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Put the phone on the same Wi-Fi as this computer.
+2. Run `npm run build && npm run start:lan`.
+3. Find this computer's LAN address. On macOS, run `ipconfig getifaddr en0`.
+4. On the phone, open `http://<that-address>:3000/ship`. Add `?debug` to see FPS.
 
-## Learn More
+Use the production build for phone testing. The dev server is slower, and
+Next.js blocks dev assets requested from other origins unless you set
+`allowedDevOrigins`.
 
-To learn more about Next.js, take a look at the following resources:
+## How it fits together
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+src/app/ship/page.tsx            static page, renders <ShipExperience/>
+src/components/
+  ShipExperience.tsx             mock data + shared GameBus
+  GameCanvas.tsx                 'use client'; import("@/game/createGame") inside useEffect
+  VirtualJoystick.tsx            floating touch joystick (touch/pen only)
+  PlayerHUD.tsx                  welcome toast, area name, key hint, ?debug stats
+src/game/
+  createGame.ts                  Phaser config: pixelArt, RESIZE scale, Arcade (variable step)
+  events.ts                      typed emitter between React and Phaser (no Phaser import)
+  scenes/                        Boot → Preload (assets, anims) → Ship
+  entities/                      Player (Arcade sprite, feet hitbox), AmbientPassenger, NameLabel
+  systems/                       pure, unit-tested logic (no Phaser):
+    walkability.ts               grid queries, foot-box check, BFS paths, areas
+    movement.ts                  normalized velocity, facing, frame-rate-independent stepping
+    PositionPersistence.ts       mock save/restore with validation (→ /api/me/position in M2)
+    zoom.ts                      integer zoom: 3× touch, 4× desktop
+  maps/walkable.json             generated; will be shared with server-side validation in M2
+scripts/
+  ship-layout.ts                 the ship's layout (edit this, then run build:assets)
+  build-ship-assets.ts           writes public/game/* and src/game/maps/walkable.json
+  art/                           procedural placeholder art (tiles, characters, font)
+public/game/                     generated: ship.json (Tiled format), PNGs, bitmap font
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**Map.** 48×28 tiles of 16 px, exported in Tiled JSON format, so you can open
+`public/game/ship.json` in Tiled. There are four tile layers: `deck`,
+`decor-below`, `decor-above` (drawn over characters) and `collision`
+(invisible). There are also two object layers: `areas` and `spawn`. The ocean
+is an animated TileSprite behind everything, with foam along the waterline.
+`walkable.json` is derived from the same layout, and a unit test checks that
+it matches the Tiled collision layer.
 
-## Deploy on Vercel
+**Six areas:** Boarding area (gangway and pier, where you spawn), Main deck,
+Captain's bridge, Observation deck (bow), Lounge, and Cabin entrance.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+**Art.** It's placeholder art, generated by code. Milestone 5 replaces the
+PNGs in `public/game/`. Keep 16×16 tiles and 16×24 character frames with the
+same sheet layout: 6 frames per row (idle ×2, walk ×4); rows down/left/right/up
+for each of 6 variants.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Environment variables
+
+None in Milestone 1. Milestone 2 adds the Supabase and session secrets. They
+must be documented in `.env.example` and never committed.
