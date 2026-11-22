@@ -39,7 +39,22 @@ npm run build && npm run start:lan   # production build, reachable from your pho
 
 Add `?debug` to the URL (`/ship?debug`) to show FPS and position.
 
-## Testing on a phone
+## Deployment (Vercel)
+
+- **Production:** https://internet-ship.vercel.app. The Vercel project is
+  `internet-ship` (account `rnaprimer`).
+- **Region:** functions run in `bom1` (Mumbai, set in `vercel.json`), next to
+  the Supabase database in `ap-south-1`.
+- **Production env vars:** `SUPABASE_URL`, plus `SUPABASE_SECRET_KEY`,
+  `CODE_PEPPER`, `CODE_ENCRYPTION_KEY` and `SHIP_INTERNAL_SECRET` stored as
+  sensitive, plus `SHIP_PUBLIC_URL=https://internet-ship.vercel.app`. To
+  change one, run `npx vercel env add NAME production`, then redeploy.
+- **To deploy:** `npx vercel deploy --prod` (or push to `main` once the Git
+  integration is connected).
+- **Testing on a phone:** open https://internet-ship.vercel.app on any network.
+  Over HTTPS the session cookie is `Secure` with the `__Host-` prefix.
+
+## Testing on a phone (local build)
 
 1. Put the phone on the same Wi-Fi as this computer.
 2. Run `npm run build && npm run start:lan`.

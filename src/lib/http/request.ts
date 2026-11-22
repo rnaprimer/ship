@@ -26,13 +26,19 @@ export function isHttps(request: Request): boolean {
   return new URL(request.url).protocol === "https:";
 }
 
+/**
+ * The client's IP, read only from a header the hosting platform sets itself.
+ * Clients can send any header they like, so trusting the wrong one would let
+ * an attacker rotate fake IPs past the rate limits.
+ *   - CLIENT_IP_HEADER set: that header (e.g. "cf-connecting-ip" behind Cloudflare).
+ *   - On Vercel: "x-real-ip", which Vercel overwrites with the real client IP.
+ *   - Otherwise (local dev, tests): the first hop of x-forwarded-for.
+ */
 function clientIp(request: Request): string {
-  return (
-    request.headers.get("cf-connecting-ip") ??
-    request.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
-    request.headers.get("x-real-ip") ??
-    "unknown"
-  );
+  const configured = process.env.CLIENT_IP_HEADER?.trim().toLowerCase();
+  if (configured) return request.headers.get(configured)?.split(",")[0].trim() || "unknown";
+  if (process.env.VERCEL) return request.headers.get("x-real-ip")?.trim() || "unknown";
+  return request.headers.get("x-forwarded-for")?.split(",")[0].trim() || "unknown";
 }
 
 /** Rate-limit key for the caller's IP: HMAC'd so raw IPs are never stored. */
