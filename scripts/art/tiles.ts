@@ -83,6 +83,7 @@ const P = {
   doorDark: "#4a2a16",
   barrel: "#8f5a31",
   barrelLight: "#b0743f",
+  barrelDark: "#74472a",
   iron: "#4a4a55",
   ironLight: "#6c6c78",
   crate: "#c08a4e",
@@ -111,25 +112,34 @@ const P = {
   pierLight: "#a68f74",
   pierDark: "#6e5c47",
   shadow: "#00000040",
+  nail: "#5a3a22",
+  glowHalo: "#ffd36b33",
+  glowHaloHot: "#ffd36b55",
   collision: "#ff00ff80",
 };
 
 function planks(c: Cell, base: Color, light: Color, dark: Color, seam: Color, variant = 0): void {
-  c.rect(0, 0, 16, 16, base);
-  // Horizontal planks, 4 px tall, with staggered end seams.
+  // Horizontal planks, 4 px tall: a light top edge, a seam below, staggered
+  // butt joints with nail heads, and a little grain so the deck isn't flat.
+  const tones = [base, light, base, dark];
   for (let row = 0; row < 4; row++) {
     const y = row * 4;
+    const tone = tones[(row + variant) % 4] === light ? base : tones[(row + variant) % 4];
+    c.rect(0, y, 16, 3, tone);
     c.rect(0, y, 16, 1, light);
     c.rect(0, y + 3, 16, 1, seam);
     const seamX = (row * 7 + variant * 5 + 3) % 16;
     c.rect(seamX, y, 1, 3, seam);
-    c.set((seamX + 8) % 16, y + 2, dark);
+    if (row % 2 === 0) c.set((seamX + 1) % 16, y + 1, P.nail);
+    // Grain: short darker streaks.
+    const g = (row * 5 + variant * 3 + 9) % 16;
+    c.rect(g, y + 2, 3, 1, dark);
+    c.set((g + 7) % 16, y + 1, dark);
   }
   if (variant === 1) {
-    c.set(5, 6, dark); // knot
-    c.set(6, 6, seam);
-    c.set(11, 13, P.outline); // nail heads
-    c.set(2, 9, P.outline);
+    c.set(5, 6, seam); // knot
+    c.set(6, 6, dark);
+    c.set(5, 5, dark);
   }
 }
 
@@ -201,7 +211,14 @@ function drawTile(c: Cell, id: number): void {
       return;
     case T.RUG:
       c.rect(0, 0, 16, 16, P.rug);
-      for (let y = 1; y < 16; y += 3) for (let x = (y % 2) * 2; x < 16; x += 4) c.set(x, y, P.rugLight);
+      for (let y = 0; y < 16; y++)
+        for (let x = 0; x < 16; x++) {
+          const d = Math.abs(x - 7.5) + Math.abs(y - 7.5);
+          if (Math.round(d) === 5) c.set(x, y, P.rugBorder);
+          else if (Math.round(d) === 2) c.set(x, y, P.rugLight);
+        }
+      c.rect(0, 0, 16, 1, P.rugLight);
+      c.rect(0, 15, 16, 1, "#6e2c36");
       return;
     case T.HATCH:
       deck(c, 0);
@@ -314,24 +331,38 @@ function drawTile(c: Cell, id: number): void {
       return;
     case T.BARREL:
       shade(c, 2, 13, 12, 3);
-      c.rect(3, 1, 10, 14, P.outline);
-      c.rect(2, 3, 12, 10, P.outline);
-      c.rect(3, 2, 10, 12, P.barrel);
-      c.rect(4, 2, 2, 12, P.barrelLight);
-      c.rect(3, 4, 10, 1, P.iron);
-      c.rect(3, 11, 10, 1, P.iron);
-      c.rect(4, 2, 8, 2, P.barrelLight); // lid
+      c.rect(4, 1, 8, 14, P.outline);
+      c.rect(3, 2, 10, 12, P.outline);
+      c.rect(2, 4, 12, 8, P.outline);
+      c.rect(4, 2, 8, 12, P.barrel);
+      c.rect(3, 4, 10, 8, P.barrel);
+      for (const x of [5, 8, 11]) c.rect(x, 3, 1, 10, P.barrelDark);
+      c.rect(4, 3, 1, 10, P.barrelLight);
+      c.rect(6, 4, 1, 8, P.barrelLight);
+      c.rect(3, 5, 10, 1, P.iron);
+      c.rect(3, 10, 10, 1, P.iron);
+      c.rect(4, 5, 2, 1, P.ironLight);
+      c.rect(4, 10, 2, 1, P.ironLight);
+      c.rect(5, 1, 6, 2, P.barrelLight); // lid
+      c.rect(6, 1, 4, 1, P.crateLight);
       return;
     case T.CRATE:
       shade(c, 1, 13, 14, 3);
       c.rect(1, 1, 14, 14, P.outline);
       c.rect(2, 2, 12, 12, P.crate);
+      for (let y = 5; y < 14; y += 4) c.rect(2, y, 12, 1, P.crateDark);
       c.rect(2, 2, 12, 1, P.crateLight);
-      c.rect(2, 13, 12, 1, P.crateDark);
-      for (let i = 0; i < 12; i++) {
-        c.set(2 + i, 2 + i, P.crateDark);
-        c.set(13 - i, 2 + i, P.crateDark);
+      c.rect(2, 2, 2, 12, P.crateDark);
+      c.rect(12, 2, 2, 12, P.crateDark);
+      c.rect(2, 2, 1, 12, P.crateLight);
+      for (let i = 0; i < 8; i++) {
+        c.set(4 + i, 3 + i + 2, P.crateLight);
+        c.set(4 + i, 2 + i + 2, P.crateDark);
       }
+      c.set(3, 3, P.nail);
+      c.set(12, 3, P.nail);
+      c.set(3, 12, P.nail);
+      c.set(12, 12, P.nail);
       return;
     case T.MAST_BASE:
       shade(c, 3, 12, 10, 3);
@@ -443,12 +474,20 @@ function drawTile(c: Cell, id: number): void {
     case T.LANTERN_TOP_A:
     case T.LANTERN_TOP_B: {
       const hot = id === T.LANTERN_TOP_A;
+      // Soft glow halo first, then the lantern on top.
+      for (let y = 1; y < 16; y++)
+        for (let x = 0; x < 16; x++) {
+          const d = Math.hypot(x - 7.5, y - 8.5);
+          if (d < (hot ? 7.5 : 6.5)) c.set(x, y, d < 4.5 ? P.glowHaloHot : P.glowHalo);
+        }
       c.rect(7, 12, 2, 4, P.lanternPost);
       c.rect(5, 5, 6, 8, P.outline);
       c.rect(6, 6, 4, 6, hot ? P.glow : P.glowDim);
       c.rect(7, 7, 2, 3, hot ? P.glowHot : P.glow);
       c.rect(4, 4, 8, 2, P.outline);
+      c.rect(5, 4, 6, 1, P.brassDark);
       c.rect(7, 2, 2, 2, P.outline);
+      c.rect(5, 12, 6, 1, P.outline);
       return;
     }
     case T.COLLISION:
@@ -471,6 +510,9 @@ export function drawTileset(): Canvas {
 export function drawOcean(): Canvas {
   const c = new Canvas(32, 32);
   c.rect(0, 0, 32, 32, "#174a68");
+  // Gentle depth variation.
+  for (let y = 0; y < 32; y++)
+    for (let x = 0; x < 32; x++) if ((x * 3 + y * 5) % 23 === 0) c.set(x, y, "#16445f");
   const crests: Array<[number, number, number]> = [
     [2, 3, 5],
     [18, 7, 4],
@@ -478,19 +520,24 @@ export function drawOcean(): Canvas {
     [25, 18, 5],
     [4, 23, 4],
     [15, 27, 5],
+    [28, 1, 3],
+    [12, 20, 3],
   ];
   for (const [x, y, len] of crests) {
     for (let i = 0; i < len; i++) c.set((x + i) % 32, y, "#2d7598");
     c.set((x + 1) % 32, y - 1, "#4f97b8");
+    c.set((x + 2) % 32, y - 1, "#4f97b8");
     c.set((x + len - 1) % 32, y + 1, "#123c56");
+    c.set((x + len) % 32, y + 1, "#123c56");
   }
   for (const [x, y] of [
     [12, 4],
     [28, 11],
     [21, 22],
     [7, 30],
+    [3, 16],
   ])
-    c.set(x, y, "#6fb3cf");
+    c.set(x, y, "#9fd3e6");
   return c;
 }
 

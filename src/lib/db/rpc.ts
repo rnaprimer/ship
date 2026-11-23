@@ -181,3 +181,89 @@ export function recordInviteDelivery(shipId: string, invitationId: string, outco
     z.boolean(),
   );
 }
+
+// --- Milestone 5: landing page and admin panel ---------------------------
+
+export const ShipPublicInfo = z.object({ name: z.string(), boarding_open: z.boolean(), passengers: z.number().int() }).nullable();
+
+export function shipPublicInfo(shipId: string) {
+  return call("ship_public_info", { p_ship_id: shipId }, ShipPublicInfo);
+}
+
+export const AdminOverview = z.object({
+  ship_status: z.enum(["active", "paused"]).nullable(),
+  players_active: z.number().int(),
+  players_disabled: z.number().int(),
+  invites_active: z.number().int(),
+  invites_redeemed: z.number().int(),
+  invites_expired: z.number().int(),
+  invites_revoked: z.number().int(),
+  delivery_failed: z.number().int(),
+  delivery_unconfirmed: z.number().int(),
+  delivery_pending: z.number().int(),
+});
+export type AdminOverview = z.infer<typeof AdminOverview>;
+
+export function adminOverview(shipId: string) {
+  return call("admin_overview", { p_ship_id: shipId }, AdminOverview);
+}
+
+export const INVITE_FILTERS = ["all", "active", "redeemed", "expired", "revoked", "delivery_problems"] as const;
+export type InviteFilter = (typeof INVITE_FILTERS)[number];
+
+const AdminInvite = z.object({
+  id: z.uuid(),
+  status: z.string(),
+  delivery_status: z.string(),
+  delivery_attempts: z.number().int(),
+  created_at: z.string(),
+  expires_at: z.string(),
+  redeemed_at: z.string().nullable(),
+  username: z.string().nullable(),
+});
+export type AdminInvite = z.infer<typeof AdminInvite>;
+
+export function adminListInvites(shipId: string, filter: InviteFilter, limit = 100) {
+  return call("admin_list_invites", { p_ship_id: shipId, p_filter: filter, p_limit: limit }, z.array(AdminInvite));
+}
+
+const AdminPlayer = z.object({
+  id: z.uuid(),
+  username: z.string(),
+  status: z.enum(["active", "disabled"]),
+  character_variant: z.number().int(),
+  joined_at: z.string(),
+  last_seen_at: z.string().nullable(),
+});
+export type AdminPlayer = z.infer<typeof AdminPlayer>;
+
+export function adminSearchPlayers(shipId: string, query: string, limit = 100) {
+  return call("admin_search_players", { p_ship_id: shipId, p_query: query, p_limit: limit }, z.array(AdminPlayer));
+}
+
+export function adminSetPlayerStatus(shipId: string, playerId: string, status: "active" | "disabled", actor: string) {
+  return call(
+    "admin_set_player_status",
+    { p_ship_id: shipId, p_player_id: playerId, p_status: status, p_actor: actor },
+    z.boolean(),
+  );
+}
+
+export function adminRevokeInvite(shipId: string, invitationId: string, actor: string) {
+  return call(
+    "admin_revoke_invite",
+    { p_ship_id: shipId, p_invitation_id: invitationId, p_actor: actor },
+    z.enum(["REVOKED", "NOT_ACTIVE", "NOT_FOUND"]),
+  );
+}
+
+export function adminSetShipStatus(shipId: string, status: "active" | "paused", actor: string) {
+  return call("admin_set_ship_status", { p_ship_id: shipId, p_status: status, p_actor: actor }, z.boolean());
+}
+
+const AuditRow = z.object({ actor_email: z.string(), action: z.string(), target: z.string().nullable(), created_at: z.string() });
+export type AuditRow = z.infer<typeof AuditRow>;
+
+export function adminRecentAudit(shipId: string, limit = 20) {
+  return call("admin_recent_audit", { p_ship_id: shipId, p_limit: limit }, z.array(AuditRow));
+}

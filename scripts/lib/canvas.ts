@@ -48,6 +48,26 @@ export class Canvas {
     for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) this.set(xx, yy, color);
   }
 
+  /** Copies a w×h block from `src` with source-over alpha compositing. */
+  drawFrom(src: Canvas, sx: number, sy: number, w: number, h: number, dx: number, dy: number): void {
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const tx = dx + x;
+        const ty = dy + y;
+        if (tx < 0 || ty < 0 || tx >= this.width || ty >= this.height) continue;
+        const si = ((sy + y) * src.width + (sx + x)) * 4;
+        const a = src.data[si + 3] / 255;
+        if (a === 0) continue;
+        const di = (ty * this.width + tx) * 4;
+        const da = this.data[di + 3] / 255;
+        const outA = a + da * (1 - a);
+        for (let k = 0; k < 3; k++) {
+          this.data[di + k] = Math.round((src.data[si + k] * a + this.data[di + k] * da * (1 - a)) / outA);
+        }
+        this.data[di + 3] = Math.round(outA * 255);
+      }
+  }
+
   /** Returns a view that draws into one cell of a grid (a tile or a sprite frame). */
   cell(col: number, row: number, cellW: number, cellH: number): Cell {
     return new Cell(this, col * cellW, row * cellH, cellW, cellH);

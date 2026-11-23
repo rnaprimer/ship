@@ -13,7 +13,7 @@ describe.skipIf(!hasDb || !publishable)("anonymous access is denied", () => {
   const anon = () =>
     createClient(process.env.SUPABASE_URL!, publishable!, { auth: { persistSession: false, autoRefreshToken: false } });
 
-  it.each(["ships", "players", "boarding_invites", "player_sessions", "player_positions", "processed_events", "rate_limits"])(
+  it.each(["ships", "players", "boarding_invites", "player_sessions", "player_positions", "processed_events", "rate_limits", "admin_audit"])(
     "cannot read or write %s",
     async (table) => {
       const read = await anon().from(table).select("*").limit(1);
@@ -38,6 +38,15 @@ describe.skipIf(!hasDb || !publishable)("anonymous access is denied", () => {
     ["rate_limit_hit", { p_key: "x", p_window_seconds: 60, p_limit: 1 }],
     ["sample_passengers", { p_ship_id: "main", p_exclude_player: null, p_limit: 5 }],
     ["passenger_count", { p_ship_id: "main" }],
+    ["ship_public_info", { p_ship_id: "main" }],
+    ["admin_overview", { p_ship_id: "main" }],
+    ["admin_list_invites", { p_ship_id: "main", p_filter: "all", p_limit: 5 }],
+    ["admin_search_players", { p_ship_id: "main", p_query: "", p_limit: 5 }],
+    ["admin_set_ship_status", { p_ship_id: "main", p_status: "paused", p_actor: "anon" }],
+    ["admin_revoke_invite", { p_ship_id: "main", p_invitation_id: "00000000-0000-4000-8000-000000000000", p_actor: "anon" }],
+    ["admin_set_player_status", { p_ship_id: "main", p_player_id: "00000000-0000-4000-8000-000000000000", p_status: "disabled", p_actor: "anon" }],
+    ["admin_recent_audit", { p_ship_id: "main", p_limit: 5 }],
+    ["record_invite_delivery", { p_ship_id: "main", p_invitation_id: "00000000-0000-4000-8000-000000000000", p_outcome: "failed" }],
   ])("cannot call %s", async (fn, args) => {
     const { data, error } = await anon().rpc(fn, args);
     expect(error, fn).not.toBeNull();

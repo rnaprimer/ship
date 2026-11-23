@@ -15,7 +15,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { encodePng } from "./lib/png.ts";
-import type { Canvas } from "./lib/canvas.ts";
+import { Canvas } from "./lib/canvas.ts";
 import { T, TILE, TILESET_COLUMNS, TILESET_ROWS, drawFoam, drawOcean, drawTileset } from "./art/tiles.ts";
 import { drawCharacters } from "./art/characters.ts";
 import { buildFont } from "./art/font.ts";
@@ -30,10 +30,12 @@ mkdirSync(mapsDir, { recursive: true });
 const writePng = (name: string, c: Canvas) => writeFileSync(join(publicDir, name), encodePng(c.width, c.height, c.data));
 
 // --- Art -------------------------------------------------------------------
-writePng("ship-tiles.png", drawTileset());
+const tilesetCanvas = drawTileset();
+writePng("ship-tiles.png", tilesetCanvas);
 writePng("ocean.png", drawOcean());
 writePng("foam.png", drawFoam());
-writePng("characters.png", drawCharacters());
+const charactersCanvas = drawCharacters();
+writePng("characters.png", charactersCanvas);
 const font = buildFont("ship-font.png");
 writePng("ship-font.png", font.canvas);
 writeFileSync(join(publicDir, "ship-font.xml"), font.xml);
@@ -235,6 +237,38 @@ const tiledMap = {
 };
 
 writeFileSync(join(publicDir, "ship.json"), JSON.stringify(tiledMap));
+
+// --- Landing-page hero: the ship rendered to one transparent PNG ------------
+// Same tiles and layers as the game, cropped to the hull and pier, with a few
+// passengers on deck (characters sit between decor-below and decor-above).
+const HERO = { x: 2, y: 2, w: 44, h: 26 };
+const hero = new Canvas(HERO.w * TILE, HERO.h * TILE);
+const blitLayer = (data: number[]) => {
+  for (let ty = HERO.y; ty < HERO.y + HERO.h; ty++)
+    for (let tx = HERO.x; tx < HERO.x + HERO.w; tx++) {
+      const g = data[ty * MAP_W + tx];
+      if (!g) continue;
+      const id = g - 1;
+      hero.drawFrom(tilesetCanvas, (id % TILESET_COLUMNS) * TILE, Math.floor(id / TILESET_COLUMNS) * TILE, TILE, TILE, (tx - HERO.x) * TILE, (ty - HERO.y) * TILE);
+    }
+};
+blitLayer(deck);
+blitLayer(decorBelow);
+// [tileX, tileY, variant, direction row: 0 down, 1 left, 2 right, 3 up]
+const heroPassengers: Array<[number, number, number, number]> = [
+  [8, 10, 3, 0],
+  [17, 9, 1, 0],
+  [24, 14, 2, 1],
+  [33, 14, 4, 0],
+  [40, 11, 5, 2],
+  [14, 17, 0, 3],
+];
+for (const [tx, ty, variant, dir] of heroPassengers) {
+  if (!isWalkableCell(layout, tx, ty)) throw new Error(`hero passenger on blocked tile ${tx},${ty}`);
+  hero.drawFrom(charactersCanvas, 0, (variant * 4 + dir) * 24, 16, 24, (tx - HERO.x) * TILE, (ty - HERO.y) * TILE - 10);
+}
+blitLayer(decorAbove);
+writePng("ship-hero.png", hero);
 
 const walkable = {
   mapId: MAP_ID,

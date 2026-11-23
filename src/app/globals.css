@@ -29,3 +29,54 @@ body {
 .hud-fade {
   animation: hud-fade 3s ease-out forwards;
 }
+
+/* ---------------- Landing page ---------------- */
+
+/* The game's ocean texture, tiled at 3× and drifting in whole-pixel steps. */
+.landing-ocean {
+  background-color: #174a68;
+  background-image: url("/game/ocean.png");
+  background-size: 96px 96px;
+  image-rendering: pixelated;
+  animation: landing-ocean-drift 18s steps(96) infinite;
+}
+@keyframes landing-ocean-drift {
+  from { background-position: 0 0; }
+  to { background-position: 96px 48px; }
+}
+
+/* The ship rides the swell: one pixel up and down. */
+.landing-bob {
+  animation: landing-bob 3.2s steps(1, end) infinite;
+}
+@keyframes landing-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(2px); }
+}
+
+/* Centered when it fits; on narrow screens it pans slowly from stern to bow. */
+.landing-pan {
+  transform: translateX(-50%);
+}
+@media (max-width: 760px) {
+  .landing-pan {
+    left: 0;
+    transform: none;
+    animation: landing-pan 26s ease-in-out infinite alternate;
+  }
+}
+@keyframes landing-pan {
+  from { transform: translateX(16px); }
+  to { transform: translateX(calc(100vw - 100% - 48px)); }
+}
+
+/* Large screens: same pixels at 2×. */
+@media (min-width: 1500px) and (min-height: 1100px) {
+  .landing-stage { height: 832px !important; }
+  .landing-pan { width: 1408px !important; height: 832px !important; }
+  .landing-bob { width: 1408px; height: 832px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-ocean, .landing-bob, .landing-pan { animation: none; }
+}
