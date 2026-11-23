@@ -267,3 +267,18 @@ export type AuditRow = z.infer<typeof AuditRow>;
 export function adminRecentAudit(shipId: string, limit = 20) {
   return call("admin_recent_audit", { p_ship_id: shipId, p_limit: limit }, z.array(AuditRow));
 }
+
+// --- Returning players: a redeemed code signs back in to its character ---
+
+const ResumeResult = z.discriminatedUnion("status", [
+  z.object({ status: z.literal("OK"), username: z.string(), character_variant: z.number().int() }),
+  z.object({ status: z.enum(["INVALID", "NOT_BOARDED", "DISABLED"]) }),
+]);
+
+export function resumeWithCode(shipId: string, codeHash: string, sessionHash: string, sessionExpires: Date) {
+  return call(
+    "resume_with_code",
+    { p_ship_id: shipId, p_code_hash: codeHash, p_session_hash: sessionHash, p_session_expires: sessionExpires.toISOString() },
+    ResumeResult,
+  );
+}

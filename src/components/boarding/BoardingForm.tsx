@@ -48,7 +48,22 @@ export function BoardingForm() {
         router.push("/board/username");
         return;
       }
-      setError((await errorFrom(res)).message);
+      const err = await errorFrom(res);
+      // A code that already boarded is this player's key: sign them back in.
+      if (err.code === "REDEEMED") {
+        const back = await fetch("/api/boarding/resume", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code: value }),
+        });
+        if (back.ok) {
+          router.replace("/ship");
+          return;
+        }
+        setError((await errorFrom(back)).message);
+      } else {
+        setError(err.message);
+      }
     } catch {
       setError(GENERIC_ERROR);
     }
@@ -79,6 +94,8 @@ export function BoardingForm() {
         {error && <ErrorNote>{error}</ErrorNote>}
       </form>
       <p className="mt-6 text-center text-xs text-[#6e4627]">
+        Already aboard? Enter the same boarding pass to get back to your character on any device.
+        <br />
         No code yet? Comment on our Instagram Reel and we&apos;ll DM you one.
       </p>
     </BoardingPanel>

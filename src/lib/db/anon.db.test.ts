@@ -46,6 +46,7 @@ describe.skipIf(!hasDb || !publishable)("anonymous access is denied", () => {
     ["admin_revoke_invite", { p_ship_id: "main", p_invitation_id: "00000000-0000-4000-8000-000000000000", p_actor: "anon" }],
     ["admin_set_player_status", { p_ship_id: "main", p_player_id: "00000000-0000-4000-8000-000000000000", p_status: "disabled", p_actor: "anon" }],
     ["admin_recent_audit", { p_ship_id: "main", p_limit: 5 }],
+    ["resume_with_code", { p_ship_id: "main", p_code_hash: "0".repeat(64), p_session_hash: "0".repeat(64), p_session_expires: new Date().toISOString() }],
     ["record_invite_delivery", { p_ship_id: "main", p_invitation_id: "00000000-0000-4000-8000-000000000000", p_outcome: "failed" }],
   ])("cannot call %s", async (fn, args) => {
     const { data, error } = await anon().rpc(fn, args);

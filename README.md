@@ -98,6 +98,15 @@ Next.js blocks dev assets requested from other origins unless you set
 - **Code in transit:** the typed code is held in React memory between the two
   boarding pages. It's never written to storage or the URL.
 
+## Returning players (owner decision 2026-11-23)
+
+A code creates at most one player. After that, the same code is that
+player's sign-in key: entering it on `/board` calls `POST /api/boarding/resume`
+(the `resume_with_code` database function), which starts a new session for
+the existing character on any device. It never creates a player, works while
+boarding is paused, refuses disabled players, and shares the boarding rate
+limits (wrong codes count as failures). Only the code's HMAC is stored.
+
 ## OpenReply integration (Milestone 3)
 
 ```

@@ -1,7 +1,7 @@
 import "server-only";
 import { normalizeCode, hashCode } from "./code";
 import { checkUsername } from "./username";
-import { checkInvite, rateLimitCount, rateLimitHit, redeemInvite } from "../db/rpc";
+import { checkInvite, rateLimitCount, rateLimitHit, redeemInvite, resumeWithCode } from "../db/rpc";
 import { secrets, serverEnv } from "../env";
 import { newSessionToken, sessionExpiry, sessionTokenHash } from "../auth/session";
 import { SHIP_MAP } from "@/game/maps";
@@ -30,7 +30,9 @@ export type BoardingError =
   | "PAUSED"
   | "RATE_LIMITED"
   | "USERNAME_TAKEN"
-  | "USERNAME_REJECTED";
+  | "USERNAME_REJECTED"
+  | "NOT_BOARDED"
+  | "DISABLED";
 
 const keys = (shipId: string, ip: string) => ({
   requests: `${shipId}:ip_req:${ip}`,
@@ -114,6 +116,37 @@ export async function redeemCode(
       sessionExpires,
       player: { username: result.username, characterVariant: result.character_variant },
     };
+  }
+  if (result.status === "INVALID") await recordFailure(shipId, ip);
+  return { ok: false, error: result.status };
+}
+
+/**
+ * Signs a returning player back in with the boarding code they redeemed
+ * before (owner decision 2026-11-23). Never creates a player. Same rate
+ * limits as boarding; wrong codes count as failed attempts.
+ */
+export async function resumeWithBoardingCode(
+  rawCode: unknown,
+  ip: string,
+): Promise<RedeemOutcome> {
+  const shipId = serverEnv().SHIP_ID;
+  if (!(await guard(shipId, ip))) return { ok: false, error: "RATE_LIMITED" };
+  const normalized = typeof rawCode === "string" ? normalizeCode(rawCode) : null;
+  if (!normalized) {
+    await recordFailure(shipId, ip);
+    return { ok: false, error: "INVALID" };
+  }
+  const sessionToken = newSessionToken();
+  const sessionExpires = sessionExpiry();
+  const result = await resumeWithCode(
+    shipId,
+    await hashCode(normalized, secrets().pepper),
+    await sessionTokenHash(sessionToken),
+    sessionExpires,
+  );
+  if (result.status === "OK") {
+    return { ok: true, sessionToken, sessionExpires, player: { username: result.username, characterVariant: result.character_variant } };
   }
   if (result.status === "INVALID") await recordFailure(shipId, ip);
   return { ok: false, error: result.status };

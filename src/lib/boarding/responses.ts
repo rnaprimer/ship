@@ -11,6 +11,8 @@ const STATUS: Record<BoardingError, number> = {
   RATE_LIMITED: 429,
   USERNAME_TAKEN: 409,
   USERNAME_REJECTED: 422,
+  NOT_BOARDED: 409,
+  DISABLED: 403,
 };
 
 /** Consistent error bodies: a machine-readable code, plus a reason for username problems. */

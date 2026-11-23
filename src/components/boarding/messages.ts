@@ -3,6 +3,8 @@ export const BOARDING_MESSAGES: Record<string, string> = {
   INVALID: "That code doesn't match a boarding pass. Check your DM and try again.",
   EXPIRED: "This boarding pass has expired. Comment on our latest Reel to get a new one.",
   REDEEMED: "This boarding pass has already been used.",
+  DISABLED: "This character is no longer allowed aboard.",
+  NOT_BOARDED: "This boarding pass hasn't been used yet. Enter it to board for the first time.",
   REVOKED: "This boarding pass is no longer valid.",
   PAUSED: "Boarding is paused right now. Please try again soon.",
   RATE_LIMITED: "Too many attempts. Please wait a few minutes and try again.",
