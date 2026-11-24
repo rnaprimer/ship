@@ -66,6 +66,46 @@
       "h": 46
     }
   ],
+  "interactables": [
+    {
+      "id": "chart-8-21",
+      "kind": "chart",
+      "label": "Read the voyage board",
+      "x": 8,
+      "y": 21,
+      "w": 3,
+      "h": 2,
+      "text": "Notices: Deck swabbing rota. Lost: one parrot, answers to 'Biscuit'. Next port of call: wherever the wind likes."
+    },
+    {
+      "id": "chart-8-24",
+      "kind": "chart",
+      "label": "Read the sea chart",
+      "x": 8,
+      "y": 24,
+      "w": 4,
+      "h": 2,
+      "text": "The whole known sea, inked by hand. Someone has drawn a tiny ship right where we are."
+    },
+    {
+      "id": "globe-13-22",
+      "kind": "globe",
+      "label": "Spin the globe",
+      "x": 13,
+      "y": 22,
+      "w": 1,
+      "h": 2
+    },
+    {
+      "id": "beer-44-23",
+      "kind": "beer",
+      "label": "Grab a cold one",
+      "x": 44,
+      "y": 23,
+      "w": 6,
+      "h": 2
+    }
+  ],
   "rows": [
     "000000000000000000000000000000000000000000000000000000000000",
     "000000000000000000000000000000000000000000000000000000000000",

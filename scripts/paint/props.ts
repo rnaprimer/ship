@@ -518,6 +518,38 @@ export const cannon: Prop = {
   },
 };
 
+/** A deck gun pointing out through the rail (south), run out and ready. */
+export const cannonOut: Prop = {
+  w: 1,
+  h: 2,
+  draw(p) {
+    shadow(p, 1, 28, 15, 4);
+    p.box(1, 2, 14, 12, C.beam, O); // carriage
+    p.hline(2, 3, 12, C.beamLight);
+    p.ellipse(3, 13, 2.5, 2.5, O);
+    p.ellipse(13, 13, 2.5, 2.5, O);
+    p.rect(4, 6, 8, 25, O); // barrel, pointing south
+    p.rect(5, 6, 6, 24, C.iron);
+    p.vline(6, 7, 22, C.ironLight);
+    p.rect(3, 28, 10, 3, O);
+    p.rect(4, 28, 8, 1, C.ironLight);
+    p.ellipse(8, 5, 3, 2, C.iron); // cascabel
+  },
+};
+
+/** A brass light switch on a wall face. */
+export const lightSwitch: Prop = {
+  w: 1,
+  h: 1,
+  block: false,
+  draw(p) {
+    p.box(4, 2, 8, 12, C.gold, O);
+    p.rect(5, 3, 6, 2, C.goldLight);
+    p.rect(7, 5, 2, 6, O);
+    p.rect(7, 5, 2, 3, C.goldLight);
+  },
+};
+
 /** A mast seen from above: a thick round post with iron bands and coiled rope. */
 export const mast: Prop = {
   w: 2,

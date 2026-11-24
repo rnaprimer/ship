@@ -16,6 +16,18 @@ export type GameEvents = {
   location: { mapId: string; name: string };
   /** Ask the game to take the player to another map (from the location picker). */
   travel: { mapId: string };
+  /** Something usable is within reach (its prompt), or nothing (null). */
+  prompt: { label: string } | null;
+  /** The player used something that needs a panel: a chart to read or the bar menu. */
+  activity: { kind: "chart" | "bar"; title: string; text: string };
+  /** A short line to show the player ("Cheers!", "BOOM!"). */
+  say: { text: string };
+  /** Use whatever is within reach (the on-screen button). */
+  use: Record<string, never>;
+  /** A drink chosen from the bar menu. */
+  drink: { drink: string };
+  /** Freeze movement while a panel is open. */
+  pause: { paused: boolean };
   /** Debug stats, emitted about once per second. */
   stats: { fps: number; x: number; y: number; direction: Direction };
 };

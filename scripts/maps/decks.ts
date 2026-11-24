@@ -34,7 +34,7 @@ export function firstDeck(): BuiltMap {
   for (const [x, y] of [[19, 14], [19, 18], [26, 10]]) m.place(P.barrel, x, y);
   m.place(P.ropeCoil, 18, 16);
   m.place(P.chest(false), 30, 26);
-  m.place(P.cannon, 33, 26);
+  m.place(P.cannonOut, 33, 29);
 
   // --- 2. Planning table under a canvas awning ---
   m.place(P.awning(9, 3), 34, 7);
@@ -90,6 +90,16 @@ export function firstDeck(): BuiltMap {
   m.place(P.desk, 92, 25);
   m.place(P.chair, 93, 27);
   m.light(95 * 16, 18 * 16, 50, 0.3);
+
+  // --- Things to do ---
+  for (const x of [49, 56, 70]) m.place(P.cannonOut, x, 29);
+  for (const x of [33, 49, 56, 70]) m.interact("cannon", "Fire the cannon", x, 29, 1, 2);
+  m.interact("chart", "Read the voyage chart", 35, 10, 6, 2, "Pinned and weighted with a dagger: tonight's course, west past the Whispering Reefs to the Lantern Isles.");
+  m.interact("wheel", "Take the helm", 86, 15, 2, 2);
+  m.interact("globe", "Spin the globe", 85, 8, 1, 2);
+  m.interact("chest", "Open the sea chest", 88, 8, 2, 2);
+  m.interact("bed", "Rest in the captain's bed", 96, 11, 2, 3);
+  m.interact("chart", "Read the captain's log", 92, 25, 3, 2, "Day 112. Calm seas, full sails. The crew grows by the hour. Someone keeps leaving rope in the galley.");
 
   m.area("Foredeck", 8, 6, 26, 26);
   m.area("Planning table", 34, 7, 9, 7);
@@ -195,6 +205,18 @@ export function secondDeck(): BuiltMap {
   for (const [x, y] of [[88, 26], [89, 26], [96, 15], [96, 16]]) m.place(P.sack, x, y);
   m.place(P.chest(false), 90, 16);
   m.lantern(88, 20);
+
+  // --- Things to do ---
+  for (const x of [44, 50, 58, 66]) {
+    m.place(P.cannonOut, x, 27);
+    m.interact("cannon", "Fire the cannon", x, 27, 1, 2);
+  }
+  m.interact("beer", "Pour a mug of grog", 58, 8, 5, 2);
+  m.interact("beer", "Raise a mug", 41, 18, 8, 2);
+  m.interact("beer", "Raise a mug", 63, 18, 8, 2);
+  m.interact("target", "Throw a dagger", 45, 8, 1, 2);
+  m.interact("bed", "Take a nap", 22, 9, 2, 3);
+  m.interact("chest", "Open the cargo chest", 90, 16, 2, 2);
 
   m.area("Crew quarters", 18, 9, 18, 12);
   m.area("Workshop", 18, 22, 18, 8);

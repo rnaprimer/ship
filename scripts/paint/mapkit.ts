@@ -16,6 +16,25 @@ export const TILE = 16;
 export type Direction = "up" | "down" | "left" | "right";
 export type AreaRect = { name: string; x: number; y: number; w: number; h: number };
 
+/** What happens when a passenger uses something. Purely cosmetic and local (BRIEF §14). */
+export type ActivityKind =
+  | "chart"
+  | "bar"
+  | "beer"
+  | "light"
+  | "cannon"
+  | "wheel"
+  | "bed"
+  | "chest"
+  | "pool"
+  | "potion"
+  | "ritual"
+  | "target"
+  | "globe";
+
+/** Something a passenger can use: its tile rect, prompt label and optional flavour text. */
+export type Interactable = { id: string; kind: ActivityKind; label: string; x: number; y: number; w: number; h: number; text?: string };
+
 export type MapMeta = {
   id: string;
   version: number;
@@ -37,6 +56,7 @@ export type BuiltMap = MapMeta & {
   above: Painter;
   walk: boolean[][];
   areas: AreaRect[];
+  interactables: Interactable[];
   spawn: { x: number; y: number; direction: Direction };
 };
 
@@ -67,6 +87,7 @@ export class MapBuilder {
   readonly above: Painter;
   readonly walk: boolean[][];
   private readonly areas: AreaRect[] = [];
+  private readonly interactables: Interactable[] = [];
   private readonly queue: Queued[] = [];
   private readonly lights: Array<[number, number, number, number]> = [];
   private spawn: BuiltMap["spawn"] | null = null;
@@ -145,6 +166,13 @@ export class MapBuilder {
   wallLamp(tx: number, ty: number): void {
     lamp(this.below, tx * TILE + 8, ty * TILE + 8);
     this.light(tx * TILE + 8, (ty + 1) * TILE + 8, 40, 0.3);
+  }
+
+  /** Marks something usable. The rect is in tiles, usually the prop's footprint. */
+  interact(kind: ActivityKind, label: string, tx: number, ty: number, w = 1, h = 1, text?: string): void {
+    const id = `${kind}-${tx}-${ty}`;
+    if (this.interactables.some((i) => i.id === id)) throw new Error(`${this.meta.id}: duplicate interactable ${id}`);
+    this.interactables.push({ id, kind, label, x: tx, y: ty, w, h, ...(text ? { text } : {}) });
   }
 
   area(name: string, tx: number, ty: number, w: number, h: number): void {
@@ -301,7 +329,7 @@ export class MapBuilder {
       .filter((q) => !q.floorLayer)
       .sort((a, b) => a.ty + a.prop.h - (b.ty + b.prop.h) || a.order - b.order)
       .forEach(paint);
-    return { ...this.meta, below: this.below, above: this.above, walk: this.walk, areas: this.areas, spawn: this.spawn };
+    return { ...this.meta, below: this.below, above: this.above, walk: this.walk, areas: this.areas, interactables: this.interactables, spawn: this.spawn };
   }
 }
 

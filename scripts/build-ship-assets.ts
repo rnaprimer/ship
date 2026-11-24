@@ -9,6 +9,7 @@
  *   public/game/ocean.png, foam.png    animated water textures
  *   public/game/characters.png         16×24 character frames, 6 variants
  *   public/game/ship-font.png/.xml     bitmap font for username labels
+ *   public/game/chart.png              the sea chart passengers can read
  *   public/game/maps/<id>.png          the map's tileset
  *   public/game/maps/<id>.json         Tiled map (layers: deck, decor-above, collision)
  *   src/game/maps/generated/<id>.json  walkability grid and metadata, shared with the server
@@ -21,6 +22,7 @@ import { Canvas } from "./lib/canvas.ts";
 import { drawFoam, drawOcean } from "./art/ocean.ts";
 import { drawCharacters } from "./art/characters.ts";
 import { buildFont } from "./art/font.ts";
+import { drawChart } from "./art/chart.ts";
 import { allMaps } from "./maps/index.ts";
 import { TILE, type BuiltMap } from "./paint/mapkit.ts";
 import type { Painter } from "./paint/painter.ts";
@@ -43,6 +45,7 @@ writePng(join(publicDir, "characters.png"), drawCharacters());
 const font = buildFont("ship-font.png");
 writePng(join(publicDir, "ship-font.png"), font.canvas);
 writeFileSync(join(publicDir, "ship-font.xml"), font.xml);
+writePng(join(publicDir, "chart.png"), drawChart().canvas);
 
 // --- Maps --------------------------------------------------------------------
 const COLUMNS = 32;
@@ -177,6 +180,7 @@ function buildMap(map: BuiltMap): void {
       foam: null,
       spawn: map.spawn,
       areas: map.areas,
+      interactables: map.interactables,
       rows,
     }, null, 2) + "\n",
   );

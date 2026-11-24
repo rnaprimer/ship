@@ -9,6 +9,9 @@ import { AmbientPassenger } from "../entities/AmbientPassenger";
 import { areaAt, isFootprintWalkable, reachableFrom, tileOf, type WalkableMap } from "../systems/walkability";
 import { combineInput, JOYSTICK_DEADZONE, type Vec } from "../systems/movement";
 import { pickZoom } from "../systems/zoom";
+import { DRINKS, GLOBE_PLACES, nearestInteractable, type DrinkId, type Interactable } from "../systems/interactions";
+import { boom, click, clink, splash } from "../systems/sfx";
+import { ActivityEffects } from "../effects/ActivityEffects";
 
 export const DEPTH = {
   ocean: -20,
@@ -18,7 +21,10 @@ export const DEPTH = {
   characters: 10, // + y / 10000 for y-sorting
   nightTint: 15,
   decorAbove: 20,
+  effects: 25,
 } as const;
+
+const CABIN_LIGHTS_KEY = "ship.cabinLights";
 
 /** Scene data: which map to open. Empty on first load (the saved position decides). */
 export type ShipSceneData = { mapId?: MapId };
@@ -43,6 +49,15 @@ export class ShipScene extends Phaser.Scene {
   private currentArea: string | null = null;
   private statsMs = 0;
   private statsFrames = 0;
+  // Activities (Milestone 8).
+  private fx!: ActivityEffects;
+  private near: Interactable | null = null;
+  private paused = false;
+  private busyUntil = 0;
+  private drift = 0;
+  private driftBoostUntil = 0;
+  private tipsyUntil = 0;
+  private lightsOverlay: Phaser.GameObjects.Rectangle | null = null;
 
   constructor() {
     super("ship");
@@ -56,6 +71,11 @@ export class ShipScene extends Phaser.Scene {
     this.currentArea = null;
     this.passengers = [];
     this.stick = { x: 0, y: 0 };
+    this.near = null;
+    this.paused = false;
+    this.busyUntil = 0;
+    this.tipsyUntil = 0;
+    this.lightsOverlay = null;
 
     // Where to start: the map we travelled to (at its spawn), else the saved
     // position if it is still valid, else First Deck's spawn.
@@ -132,6 +152,20 @@ export class ShipScene extends Phaser.Scene {
     }
     this.cleanup.push(this.bus.on("joystick", (v) => (this.stick = v)));
     this.cleanup.push(this.bus.on("travel", ({ mapId }) => this.travel(mapId)));
+    // Activities: E or Space, or the on-screen button.
+    this.fx = new ActivityEffects(this, DEPTH.effects);
+    const use = () => this.activate();
+    kb?.on("keydown-E", use);
+    kb?.on("keydown-SPACE", use);
+    this.cleanup.push(() => {
+      kb?.off("keydown-E", use);
+      kb?.off("keydown-SPACE", use);
+    });
+    this.cleanup.push(this.bus.on("use", use));
+    this.cleanup.push(this.bus.on("drink", ({ drink }) => this.drink(drink as DrinkId)));
+    this.cleanup.push(this.bus.on("pause", ({ paused }) => (this.paused = paused)));
+    this.bus.emit("prompt", null);
+    if (this.map.mapId === "personal-cabin") this.setupCabinLights();
 
     // --- Persistence: every 15 s if moved, and when the page is hidden or closed ---
     this.time.addEvent({ delay: 15_000, loop: true, callback: () => this.savePosition(false) });
@@ -228,6 +262,159 @@ export class ShipScene extends Phaser.Scene {
     this.lastSaved = { x, y };
   }
 
+  // --- Activities --------------------------------------------------------------
+  // All cosmetic and local: nothing is collected, scored or shared (BRIEF §14).
+
+  private say(text: string) {
+    this.bus.emit("say", { text });
+  }
+
+  private activate() {
+    const it = this.near;
+    if (!it || this.paused || this.traveling || this.time.now < this.busyUntil) return;
+    this.busyUntil = this.time.now + 600;
+    const cx = (it.x + it.w / 2) * 16;
+    const cy = (it.y + it.h / 2) * 16;
+    const head = { x: this.player.x, y: this.player.y - 26 };
+    switch (it.kind) {
+      case "chart":
+        this.bus.emit("activity", { kind: "chart", title: it.label, text: it.text ?? "" });
+        break;
+      case "bar":
+        this.bus.emit("activity", { kind: "bar", title: it.label, text: "" });
+        break;
+      case "beer":
+        this.drink("beer");
+        break;
+      case "light":
+        this.toggleCabinLights();
+        break;
+      case "cannon":
+        this.fireCannon(it);
+        break;
+      case "wheel":
+        this.driftBoostUntil = this.time.now + 3500;
+        this.cameras.main.shake(400, 0.002);
+        click(300);
+        this.say("Hard a-starboard! The ship leans into the wind.");
+        break;
+      case "bed":
+        this.rest(it.label.startsWith("Sunbathe") ? "You soak up the sun. Lovely." : "Zzz… you wake up feeling rested.");
+        break;
+      case "chest":
+        click(500);
+        this.fx.burst(cx, cy - 6, { count: 18, colors: [0xf6d27a, 0xffffff, 0xd9a441], spread: 14, rise: 18, life: 900 });
+        this.say("Gold glints in the lantern light… but it all belongs to the ship.");
+        break;
+      case "pool": {
+        // Splash at the edge of the pool nearest to you.
+        const px = Math.max(it.x * 16 + 10, Math.min((it.x + it.w) * 16 - 10, this.player.x));
+        const py = Math.max(it.y * 16 + 10, Math.min((it.y + it.h) * 16 - 10, this.player.y - 6));
+        this.fx.splash(px, py);
+        splash();
+        this.say("Splash! The water's lovely and warm.");
+        break;
+      }
+      case "potion":
+        for (let i = 0; i < 4; i++)
+          this.time.delayedCall(i * 180, () =>
+            this.fx.burst(cx + (Math.random() - 0.5) * 24, cy - 8, { count: 5, colors: [0xa64fd6, 0x4fd68a, 0x4f8ad6], spread: 6, rise: 22, life: 1000 }),
+          );
+        this.say(["It fizzes and smells of plums.", "The potion turns a worrying shade of green.", "A puff of purple smoke! Nothing else happens."][Math.floor(Math.random() * 3)]);
+        break;
+      case "ritual":
+        for (let i = 0; i < 3; i++) this.time.delayedCall(i * 250, () => this.fx.ring(cx, cy, 0xb36bff, 36 + i * 8, 900, 0.6));
+        this.player.sprite.setTint(0xd9b3ff);
+        this.time.delayedCall(900, () => this.player.sprite.clearTint());
+        this.say("The candles flicker… and the room hums softly.");
+        break;
+      case "target":
+        this.fx.throwDagger(head.x, head.y + 12, cx, cy - 4, () => {
+          click(1400);
+          this.fx.burst(cx, cy - 4, { count: 6, colors: [0xead8a8], spread: 6, life: 400 });
+          this.say(Math.random() < 0.4 ? "Bullseye!" : "Thunk. Just off the mark.");
+        });
+        break;
+      case "globe":
+        click(700);
+        this.say(`You spin the globe. It stops on ${GLOBE_PLACES[Math.floor(Math.random() * GLOBE_PLACES.length)]}.`);
+        break;
+    }
+  }
+
+  private drink(id: DrinkId) {
+    const d = DRINKS[id];
+    if (!d) return;
+    const head = { x: this.player.x, y: this.player.y - 24 };
+    clink();
+    this.fx.rise(head.x, head.y, id === "beer" || id === "grog" ? "fx-mug" : "fx-glass", { tint: id === "beer" || id === "grog" ? undefined : d.color });
+    this.fx.burst(head.x, head.y - 4, { count: 6, colors: [0xffffff, 0xf6d27a], spread: 8, rise: 8, life: 600 });
+    if (d.tipsy) this.tipsyUntil = this.time.now + 6000;
+    this.say(`Cheers! ${d.name}${d.tipsy ? ", and the deck sways a little." : ". Refreshing."}`);
+  }
+
+  private fireCannon(it: Interactable) {
+    // Cannons point south, out through the rail.
+    const tipX = it.x * 16 + 8;
+    const tipY = (it.y + it.h) * 16 + 2;
+    this.busyUntil = this.time.now + 1200;
+    this.fx.flash(tipX, tipY, 0xffe08a, 10);
+    this.fx.burst(tipX, tipY, { count: 10, colors: [0xffd36b, 0xff8a3c, 0xffffff], spread: 12, life: 300 });
+    this.fx.smoke(tipX, tipY, 8);
+    this.cameras.main.shake(260, 0.006);
+    boom();
+    if (this.map.outdoor) {
+      const sx = tipX + (Math.random() - 0.5) * 40;
+      const sy = tipY + 110 + Math.random() * 40;
+      this.time.delayedCall(700, () => {
+        this.fx.splash(sx, sy);
+        this.fx.burst(sx, sy, { count: 14, colors: [0xffffff, 0xcfe8ef], spread: 10, rise: 30, life: 800 });
+      });
+      splash(0.7);
+    }
+    this.say("BOOM! A plume of spray rises far off the side.");
+  }
+
+  /** Lie down: fade out, a few Zs, fade back in. */
+  private rest(message: string) {
+    this.busyUntil = this.time.now + 2600;
+    const cam = this.cameras.main;
+    for (let i = 0; i < 3; i++) this.fx.rise(this.player.x + 6 + i * 3, this.player.y - 22, "fx-z", { delay: i * 300, distance: 18 });
+    this.time.delayedCall(500, () => cam.fadeOut(500, 0, 0, 0));
+    this.time.delayedCall(1700, () => {
+      cam.fadeIn(700, 0, 0, 0);
+      this.say(message);
+    });
+  }
+
+  private setupCabinLights() {
+    this.lightsOverlay = this.add
+      .rectangle(0, 0, this.mapW, this.mapH, 0x05030a, 0.72)
+      .setOrigin(0)
+      .setDepth(DEPTH.nightTint);
+    let off = false;
+    try {
+      off = window.localStorage.getItem(CABIN_LIGHTS_KEY) === "off";
+    } catch {
+      // Storage may be blocked; lights default to on.
+    }
+    this.lightsOverlay.setAlpha(off ? 1 : 0);
+  }
+
+  private toggleCabinLights() {
+    const overlay = this.lightsOverlay;
+    if (!overlay) return;
+    const turnOff = overlay.alpha < 0.5;
+    click(turnOff ? 600 : 1100);
+    this.tweens.add({ targets: overlay, alpha: turnOff ? 1 : 0, duration: 180 });
+    try {
+      window.localStorage.setItem(CABIN_LIGHTS_KEY, turnOff ? "off" : "on");
+    } catch {
+      // Not saved; fine.
+    }
+    this.say(turnOff ? "Click. The cabin goes dark; moonlight through the stern windows." : "Click. Warm lamplight again.");
+  }
+
   private keyboardVector(): Vec {
     const k = this.keys;
     if (!k) return { x: 0, y: 0 };
@@ -241,7 +428,9 @@ export class ShipScene extends Phaser.Scene {
     const t = this.elapsed / 1000;
     // Waves drift; the water rises and falls a pixel against the hull ("hull bob").
     if (this.ocean) {
-      this.ocean.tilePositionX = t * 4;
+      // At the helm the sea rushes past faster for a few seconds.
+      this.drift += (delta / 1000) * (this.time.now < this.driftBoostUntil ? 26 : 4);
+      this.ocean.tilePositionX = this.drift;
       this.ocean.tilePositionY = Math.round(Math.sin(t * 0.8) * 2);
       this.ocean.y = -32 + Math.round(Math.sin(t * 1.6));
     }
@@ -251,7 +440,11 @@ export class ShipScene extends Phaser.Scene {
     }
 
     const stick = Math.hypot(this.stick.x, this.stick.y) < JOYSTICK_DEADZONE ? { x: 0, y: 0 } : this.stick;
-    this.player.applyInput(this.traveling ? { x: 0, y: 0 } : combineInput(this.keyboardVector(), stick));
+    const frozen = this.traveling || this.paused || this.time.now < this.busyUntil;
+    this.player.applyInput(frozen ? { x: 0, y: 0 } : combineInput(this.keyboardVector(), stick));
+    // A little sway after a strong drink.
+    const sway = this.time.now < this.tipsyUntil ? Math.round(Math.sin(t * 2.2) * 5) : 0;
+    this.cameras.main.setFollowOffset(sway, 12);
     for (const p of this.passengers) p.update(delta, DEPTH.characters);
 
     this.statsFrames++;
@@ -266,6 +459,12 @@ export class ShipScene extends Phaser.Scene {
 
   private afterPhysics() {
     this.player.syncVisuals(DEPTH.characters);
+    // What's within reach? Tell the HUD when it changes.
+    const near = this.traveling || this.paused ? null : nearestInteractable(this.map.interactables, this.player.x, this.player.y);
+    if (near?.id !== this.near?.id) {
+      this.near = near;
+      this.bus.emit("prompt", near ? { label: near.label } : null);
+    }
     const area = areaAt(this.map, this.player.x, this.player.y - 3);
     if (area && area !== this.currentArea) {
       this.currentArea = area;

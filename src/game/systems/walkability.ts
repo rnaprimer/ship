@@ -1,4 +1,5 @@
 import type { Direction } from "../types";
+import type { Interactable } from "./interactions";
 
 export type AreaRect = { name: string; x: number; y: number; w: number; h: number };
 
@@ -26,6 +27,8 @@ export type WalkableMap = {
   background: string;
   /** Foam strip where the hull meets the water, in tiles. */
   foam: { x: number; y: number; w: number } | null;
+  /** Things passengers can use here (cosmetic, client-only). */
+  interactables?: Interactable[];
 };
 
 export type TilePoint = { tx: number; ty: number };

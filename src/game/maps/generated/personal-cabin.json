@@ -24,6 +24,64 @@
       "h": 28
     }
   ],
+  "interactables": [
+    {
+      "id": "light-19-6",
+      "kind": "light",
+      "label": "Switch the lights",
+      "x": 19,
+      "y": 6,
+      "w": 1,
+      "h": 1
+    },
+    {
+      "id": "bed-25-7",
+      "kind": "bed",
+      "label": "Go to sleep",
+      "x": 25,
+      "y": 7,
+      "w": 2,
+      "h": 3
+    },
+    {
+      "id": "chart-14-7",
+      "kind": "chart",
+      "label": "Read your logbook",
+      "x": 14,
+      "y": 7,
+      "w": 3,
+      "h": 2,
+      "text": "Your own log. First entry: 'Came aboard. The ship is bigger than it looks from the Reel.'"
+    },
+    {
+      "id": "chart-14-18",
+      "kind": "chart",
+      "label": "Read the sea chart",
+      "x": 14,
+      "y": 18,
+      "w": 3,
+      "h": 2,
+      "text": "A chart of the waters ahead, with your cabin's window marked by a little star."
+    },
+    {
+      "id": "globe-26-17",
+      "kind": "globe",
+      "label": "Spin the globe",
+      "x": 26,
+      "y": 17,
+      "w": 1,
+      "h": 2
+    },
+    {
+      "id": "chest-5-8",
+      "kind": "chest",
+      "label": "Open your chest",
+      "x": 5,
+      "y": 8,
+      "w": 2,
+      "h": 2
+    }
+  ],
   "rows": [
     "000000000000000000000000000000000000",
     "000000000000000000000000000000000000",

@@ -90,6 +90,13 @@ export function secretDeck(): BuiltMap {
   for (const [x, y] of [[83, 12], [90, 12], [83, 19], [90, 19], [86, 21]]) m.place(P.candles, x, y);
   m.place(P.bookshelf(), 87, 22);
 
+  // --- Things to do ---
+  m.interact("chart", "Study the charts", 59, 14, 6, 3, "Old charts in many hands. One shows an island shaped like a skull, with a note: 'not yet'.");
+  m.interact("globe", "Spin the globe", 67, 13, 1, 2);
+  m.interact("potion", "Brew a potion", 73, 8, 3, 2);
+  m.interact("ritual", "Step into the circle", 85, 14, 4, 4);
+  for (const [x, y] of [[37, 9], [48, 9], [50, 22]]) m.interact("chest", "Run your hands through the gold", x, y, 2, 2);
+
   m.area("Smuggler's hold", 6, 5, 16, 22);
   m.area("Brig", 23, 5, 11, 22);
   m.area("Treasure vault", 35, 5, 19, 22);
@@ -170,6 +177,12 @@ export function grandLobby(): BuiltMap {
   m.place(P.stairs(4, 2), 28, 38);
   m.place(P.banner, 25, 38);
   m.place(P.banner, 34, 38);
+
+  // --- Things to do ---
+  m.interact("chart", "Read the voyage board", 8, 21, 3, 2, "Notices: Deck swabbing rota. Lost: one parrot, answers to 'Biscuit'. Next port of call: wherever the wind likes.");
+  m.interact("chart", "Read the sea chart", 8, 24, 4, 2, "The whole known sea, inked by hand. Someone has drawn a tiny ship right where we are.");
+  m.interact("globe", "Spin the globe", 13, 22, 1, 2);
+  m.interact("beer", "Grab a cold one", 44, 23, 6, 2);
 
   m.area("Grand staircase", 19, 9, 22, 4);
   m.area("Crew lounge", 5, 9, 12, 8);
@@ -268,6 +281,13 @@ export function swimmingPool(): BuiltMap {
   m.place(P.lifeRing, 24, 40);
   m.place(P.lifeRing, 39, 40);
 
+  // --- Things to do ---
+  m.interact("bar", "Order a drink", 28, 8, 6, 3);
+  m.interact("pool", "Take a dip", 20, 15, 24, 13);
+  m.interact("bed", "Nap in the cabana", 9, 9, 4, 4);
+  for (const y of [16, 22]) for (const x of [10, 12, 52, 54]) m.interact("bed", "Sunbathe", x, y, 1, 2);
+  m.interact("chest", "Open the chest", 50, 34, 2, 2);
+
   m.area("Pool", 19, 14, 26, 15);
   m.area("Sun lounge", 8, 15, 9, 13);
   m.area("Sun lounge", 48, 15, 10, 13);
@@ -346,6 +366,15 @@ export function personalCabin(): BuiltMap {
   m.place(P.sack, 22, 21);
   m.place(P.crate, 23, 21);
   m.light(16 * 16, 9 * 16, 40, 0.3);
+
+  // --- Things to do ---
+  m.place(P.lightSwitch, 19, 6);
+  m.interact("light", "Switch the lights", 19, 6);
+  m.interact("bed", "Go to sleep", 25, 7, 2, 3);
+  m.interact("chart", "Read your logbook", 14, 7, 3, 2, "Your own log. First entry: 'Came aboard. The ship is bigger than it looks from the Reel.'");
+  m.interact("chart", "Read the sea chart", 14, 18, 3, 2, "A chart of the waters ahead, with your cabin's window marked by a little star.");
+  m.interact("globe", "Spin the globe", 26, 17, 1, 2);
+  m.interact("chest", "Open your chest", 5, 8, 2, 2);
 
   m.area("Your cabin", 0, 0, 36, 28);
   m.setSpawn(10, 20);

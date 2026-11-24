@@ -66,6 +66,116 @@
       "h": 48
     }
   ],
+  "interactables": [
+    {
+      "id": "bar-28-8",
+      "kind": "bar",
+      "label": "Order a drink",
+      "x": 28,
+      "y": 8,
+      "w": 6,
+      "h": 3
+    },
+    {
+      "id": "pool-20-15",
+      "kind": "pool",
+      "label": "Take a dip",
+      "x": 20,
+      "y": 15,
+      "w": 24,
+      "h": 13
+    },
+    {
+      "id": "bed-9-9",
+      "kind": "bed",
+      "label": "Nap in the cabana",
+      "x": 9,
+      "y": 9,
+      "w": 4,
+      "h": 4
+    },
+    {
+      "id": "bed-10-16",
+      "kind": "bed",
+      "label": "Sunbathe",
+      "x": 10,
+      "y": 16,
+      "w": 1,
+      "h": 2
+    },
+    {
+      "id": "bed-12-16",
+      "kind": "bed",
+      "label": "Sunbathe",
+      "x": 12,
+      "y": 16,
+      "w": 1,
+      "h": 2
+    },
+    {
+      "id": "bed-52-16",
+      "kind": "bed",
+      "label": "Sunbathe",
+      "x": 52,
+      "y": 16,
+      "w": 1,
+      "h": 2
+    },
+    {
+      "id": "bed-54-16",
+      "kind": "bed",
+      "label": "Sunbathe",
+      "x": 54,
+      "y": 16,
+      "w": 1,
+      "h": 2
+    },
+    {
+      "id": "bed-10-22",
+      "kind": "bed",
+      "label": "Sunbathe",
+      "x": 10,
+      "y": 22,
+      "w": 1,
+      "h": 2
+    },
+    {
+      "id": "bed-12-22",
+      "kind": "bed",
+      "label": "Sunbathe",
+      "x": 12,
+      "y": 22,
+      "w": 1,
+      "h": 2
+    },
+    {
+      "id": "bed-52-22",
+      "kind": "bed",
+      "label": "Sunbathe",
+      "x": 52,
+      "y": 22,
+      "w": 1,
+      "h": 2
+    },
+    {
+      "id": "bed-54-22",
+      "kind": "bed",
+      "label": "Sunbathe",
+      "x": 54,
+      "y": 22,
+      "w": 1,
+      "h": 2
+    },
+    {
+      "id": "chest-50-34",
+      "kind": "chest",
+      "label": "Open the chest",
+      "x": 50,
+      "y": 34,
+      "w": 2,
+      "h": 2
+    }
+  ],
   "rows": [
     "000000000000000000000000000000000000000000000000000000000000000000",
     "000000000000000000000000000000000000000000000000000000000000000000",
