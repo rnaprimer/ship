@@ -87,7 +87,7 @@ export function VirtualJoystick({ bus }: { bus: GameBus }) {
         </div>
       )}
       {isTouch && !used && (
-        <div className="font-pixel pointer-events-none absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+40px)] text-center text-[10px] leading-relaxed text-[#f4ead5] [text-shadow:0_2px_0_#1e1420]">
+        <div className="font-pixel pointer-events-none absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+40px)] text-center text-sm leading-relaxed text-[#f4ead5] [text-shadow:0_2px_0_#1e1420]">
           Touch and drag to walk
         </div>
       )}

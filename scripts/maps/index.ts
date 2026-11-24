@@ -1,8 +1,8 @@
-import { firstDeck } from "./first-deck.ts";
-import { grandLobby, personalCabin, secondDeck, secretDeck, swimmingPool } from "./locations.ts";
-import type { MapDef } from "./kit.ts";
+import { firstDeck, secondDeck } from "./decks.ts";
+import { grandLobby, personalCabin, secretDeck, swimmingPool } from "./rooms.ts";
+import type { BuiltMap } from "../paint/mapkit.ts";
 
-/** Every map, in the order the location picker lists them. First Deck first: it is the default. */
-export function allMaps(): MapDef[] {
+/** Every place on the ship. First Deck first: it is the default. */
+export function allMaps(): BuiltMap[] {
   return [firstDeck(), grandLobby(), personalCabin(), swimmingPool(), secretDeck(), secondDeck()];
 }

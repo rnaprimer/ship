@@ -1,15 +1,16 @@
 /**
- * Generates the placeholder art and every map.
+ * Generates the game art and every map.
  *
  *   node scripts/build-ship-assets.ts   (or: npm run build:assets)
  *
- * Outputs:
- *   public/game/ship-tiles.png      16×16 tileset shared by all maps
- *   public/game/ocean.png, foam.png animated water textures
- *   public/game/characters.png      16×24 character frames, 6 variants
- *   public/game/ship-font.png/.xml  bitmap font for username labels
- *   public/game/ship-hero.png       First Deck rendered for the landing page
- *   public/game/maps/<id>.json      one Tiled map per location (open in Tiled to edit by hand)
+ * Each place is painted as a whole picture (scripts/maps/, scripts/paint/),
+ * then cut into 16×16 tiles: identical tiles are stored once in a per-map
+ * tileset. Outputs:
+ *   public/game/ocean.png, foam.png    animated water textures
+ *   public/game/characters.png         16×24 character frames, 6 variants
+ *   public/game/ship-font.png/.xml     bitmap font for username labels
+ *   public/game/maps/<id>.png          the map's tileset
+ *   public/game/maps/<id>.json         Tiled map (layers: deck, decor-above, collision)
  *   src/game/maps/generated/<id>.json  walkability grid and metadata, shared with the server
  */
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
@@ -17,86 +18,98 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { encodePng } from "./lib/png.ts";
 import { Canvas } from "./lib/canvas.ts";
-import { T, TILE, TILESET_COLUMNS, TILESET_ROWS, drawFoam, drawOcean, drawTileset } from "./art/tiles.ts";
+import { drawFoam, drawOcean } from "./art/ocean.ts";
 import { drawCharacters } from "./art/characters.ts";
 import { buildFont } from "./art/font.ts";
-import { FLOOR_TILES, OBJECT_TILES, isWalkableCell, toAscii, type MapDef } from "./maps/kit.ts";
 import { allMaps } from "./maps/index.ts";
+import { TILE, type BuiltMap } from "./paint/mapkit.ts";
+import type { Painter } from "./paint/painter.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const publicDir = join(root, "public", "game");
 const publicMapsDir = join(publicDir, "maps");
 const mapsDir = join(root, "src", "game", "maps", "generated");
 for (const dir of [publicDir, publicMapsDir, mapsDir]) mkdirSync(dir, { recursive: true });
-// Files from the single-map layout, before Milestone 6.
-rmSync(join(publicDir, "ship.json"), { force: true });
-rmSync(join(root, "src", "game", "maps", "walkable.json"), { force: true });
+// Art from the tile-grid maps (Milestone 6 and before).
+for (const f of ["ship-tiles.png", "ship-hero.png", "ship.json"]) rmSync(join(publicDir, f), { force: true });
 
-const writePng = (name: string, c: Canvas) => writeFileSync(join(publicDir, name), encodePng(c.width, c.height, c.data));
+const previewDir = process.argv.includes("--preview") ? process.argv[process.argv.indexOf("--preview") + 1] : null;
+const writePng = (path: string, c: Canvas) => writeFileSync(path, encodePng(c.width, c.height, c.data));
 
-// --- Art -------------------------------------------------------------------
-const tilesetCanvas = drawTileset();
-writePng("ship-tiles.png", tilesetCanvas);
-writePng("ocean.png", drawOcean());
-writePng("foam.png", drawFoam());
-const charactersCanvas = drawCharacters();
-writePng("characters.png", charactersCanvas);
+// --- Shared art --------------------------------------------------------------
+writePng(join(publicDir, "ocean.png"), drawOcean());
+writePng(join(publicDir, "foam.png"), drawFoam());
+writePng(join(publicDir, "characters.png"), drawCharacters());
 const font = buildFont("ship-font.png");
-writePng("ship-font.png", font.canvas);
+writePng(join(publicDir, "ship-font.png"), font.canvas);
 writeFileSync(join(publicDir, "ship-font.xml"), font.xml);
 
-const gid = (id: number) => id + 1;
+// --- Maps --------------------------------------------------------------------
+const COLUMNS = 32;
 
-type Layers = { deck: number[]; decorBelow: number[]; decorAbove: number[] };
-
-/** Writes one map's Tiled JSON and walkability file; returns its tile layers. */
-function buildMap(layout: MapDef): Layers {
-  const { width: W, height: H } = layout;
-  const deck: number[] = [];
-  const decorBelow: number[] = [];
-  const decorAbove: number[] = new Array(W * H).fill(0);
-  const collision: number[] = [];
-  const walkableRows: string[] = [];
-
-  for (let y = 0; y < H; y++) {
-    let row = "";
-    for (let x = 0; x < W; x++) {
-      const f = layout.floor[y][x];
-      if (f === "~") deck.push(0);
-      else {
-        const id = FLOOR_TILES[f];
-        if (id === undefined) throw new Error(`${layout.id}: unknown floor char "${f}" at ${x},${y}`);
-        // Sprinkle the knotted plank variant for texture.
-        deck.push(gid(id === T.DECK && (x * 7 + y * 13) % 11 === 0 ? T.DECK_B : id));
+/** Cuts a painted layer into tiles, adding new ones to `tiles`; returns the layer's gids. */
+function slice(layer: Painter, map: BuiltMap, tiles: Uint8Array[], index: Map<string, number>): number[] {
+  const gids: number[] = [];
+  const src = layer.canvas.data;
+  for (let ty = 0; ty < map.height; ty++)
+    for (let tx = 0; tx < map.width; tx++) {
+      const tile = new Uint8Array(TILE * TILE * 4);
+      let opaque = false;
+      for (let y = 0; y < TILE; y++) {
+        const from = ((ty * TILE + y) * layer.width + tx * TILE) * 4;
+        tile.set(src.subarray(from, from + TILE * 4), y * TILE * 4);
       }
-      const o = layout.obj[y][x];
-      if (o === "") decorBelow.push(0);
-      else {
-        const id = OBJECT_TILES[o];
-        if (id === undefined) throw new Error(`${layout.id}: unknown object char "${o}" at ${x},${y}`);
-        decorBelow.push(gid(id));
+      for (let i = 3; i < tile.length; i += 4)
+        if (tile[i] !== 0) {
+          opaque = true;
+          break;
+        }
+      if (!opaque) {
+        gids.push(0);
+        continue;
       }
-      const walkable = isWalkableCell(layout, x, y);
-      collision.push(walkable ? 0 : gid(T.COLLISION));
-      row += walkable ? "1" : "0";
+      const key = Buffer.from(tile).toString("base64");
+      let id = index.get(key);
+      if (id === undefined) {
+        id = tiles.length;
+        tiles.push(tile);
+        index.set(key, id);
+      }
+      gids.push(id + 1);
     }
-    walkableRows.push(row);
-  }
-  for (const [x, y, name] of layout.above) {
-    if (x < 0 || y < 0 || x >= W || y >= H) throw new Error(`${layout.id}: above tile ${name} off the map at ${x},${y}`);
-    decorAbove[y * W + x] = gid(T[name]);
-  }
+  return gids;
+}
 
-  const spawnTx = Math.floor(layout.spawn.x / TILE);
-  const spawnTy = Math.floor((layout.spawn.y - 1) / TILE);
-  if (walkableRows[spawnTy]?.[spawnTx] !== "1") throw new Error(`${layout.id}: spawn is not walkable`);
+function buildMap(map: BuiltMap): void {
+  const { width: W, height: H } = map;
+  // Tile 0 of every tileset is the (invisible) collision marker.
+  const marker = new Uint8Array(TILE * TILE * 4);
+  for (let i = 0; i < marker.length; i += 4) marker.set([255, 0, 255, 128], i);
+  const tiles: Uint8Array[] = [marker];
+  const index = new Map<string, number>();
+  const deck = slice(map.below, map, tiles, index);
+  const above = slice(map.above, map, tiles, index);
+
+  const rows = map.walk.map((r) => r.map((w) => (w ? "1" : "0")).join(""));
+  const collision = rows.flatMap((r) => [...r].map((c) => (c === "1" ? 0 : 1)));
+  const spawnTx = Math.floor(map.spawn.x / TILE);
+  const spawnTy = Math.floor((map.spawn.y - 1) / TILE);
+  if (rows[spawnTy]?.[spawnTx] !== "1") throw new Error(`${map.id}: spawn is not walkable`);
+
+  const tileRows = Math.ceil(tiles.length / COLUMNS);
+  const sheet = new Canvas(COLUMNS * TILE, tileRows * TILE);
+  tiles.forEach((t, i) => {
+    const ox = (i % COLUMNS) * TILE;
+    const oy = Math.floor(i / COLUMNS) * TILE;
+    for (let y = 0; y < TILE; y++) sheet.data.set(t.subarray(y * TILE * 4, (y + 1) * TILE * 4), ((oy + y) * sheet.width + ox) * 4);
+  });
+  writePng(join(publicMapsDir, `${map.id}.png`), sheet);
 
   const tileLayer = (id: number, name: string, data: number[], visible = true) => ({
     id, name, type: "tilelayer", width: W, height: H, x: 0, y: 0, opacity: 1, visible, data,
   });
-
   let nextObjectId = 1;
-  const tiledMap = {
+  const tiled = {
     type: "map",
     version: "1.10",
     tiledversion: "1.11.0",
@@ -109,130 +122,82 @@ function buildMap(layout: MapDef): Layers {
     tileheight: TILE,
     compressionlevel: -1,
     properties: [
-      { name: "mapId", type: "string", value: layout.id },
-      { name: "mapVersion", type: "int", value: layout.version },
+      { name: "mapId", type: "string", value: map.id },
+      { name: "mapVersion", type: "int", value: map.version },
     ],
     layers: [
       tileLayer(1, "deck", deck),
-      tileLayer(2, "decor-below", decorBelow),
-      tileLayer(3, "decor-above", decorAbove),
-      tileLayer(4, "collision", collision, false),
+      tileLayer(2, "decor-above", above),
+      tileLayer(3, "collision", collision, false),
       {
-        id: 5, name: "areas", type: "objectgroup", draworder: "index", opacity: 1, visible: true, x: 0, y: 0,
-        objects: layout.areas.map((a) => ({
-          id: nextObjectId++, name: a.name, type: "area",
-          x: a.x * TILE, y: a.y * TILE, width: a.w * TILE, height: a.h * TILE, rotation: 0, visible: true,
+        id: 4, name: "areas", type: "objectgroup", draworder: "index", opacity: 1, visible: true, x: 0, y: 0,
+        objects: map.areas.map((a) => ({
+          id: nextObjectId++, name: a.name, type: "area", x: a.x * TILE, y: a.y * TILE, width: a.w * TILE, height: a.h * TILE, rotation: 0, visible: true,
         })),
       },
       {
-        id: 6, name: "spawn", type: "objectgroup", draworder: "topdown", opacity: 1, visible: true, x: 0, y: 0,
-        objects: [
-          {
-            id: nextObjectId++, name: "spawn", type: "spawn", point: true,
-            x: layout.spawn.x, y: layout.spawn.y, width: 0, height: 0, rotation: 0, visible: true,
-            properties: [{ name: "direction", type: "string", value: layout.spawn.direction }],
-          },
-        ],
+        id: 5, name: "spawn", type: "objectgroup", draworder: "topdown", opacity: 1, visible: true, x: 0, y: 0,
+        objects: [{
+          id: nextObjectId++, name: "spawn", type: "spawn", point: true, x: map.spawn.x, y: map.spawn.y, width: 0, height: 0, rotation: 0, visible: true,
+          properties: [{ name: "direction", type: "string", value: map.spawn.direction }],
+        }],
       },
     ],
-    nextlayerid: 7,
+    nextlayerid: 6,
     nextobjectid: nextObjectId,
-    tilesets: [
-      {
-        firstgid: 1,
-        name: "ship-tiles",
-        image: "../ship-tiles.png",
-        imagewidth: TILESET_COLUMNS * TILE,
-        imageheight: TILESET_ROWS * TILE,
-        tilewidth: TILE,
-        tileheight: TILE,
-        columns: TILESET_COLUMNS,
-        tilecount: TILESET_COLUMNS * TILESET_ROWS,
-        margin: 0,
-        spacing: 0,
-        tiles: [
-          { id: T.FLAG_A, animation: [{ tileid: T.FLAG_A, duration: 380 }, { tileid: T.FLAG_B, duration: 380 }] },
-          {
-            id: T.LANTERN_TOP_A,
-            animation: [
-              { tileid: T.LANTERN_TOP_A, duration: 700 },
-              { tileid: T.LANTERN_TOP_B, duration: 160 },
-              { tileid: T.LANTERN_TOP_A, duration: 420 },
-              { tileid: T.LANTERN_TOP_B, duration: 120 },
-            ],
-          },
-          {
-            id: T.CHANDELIER_A,
-            animation: [
-              { tileid: T.CHANDELIER_A, duration: 900 },
-              { tileid: T.CHANDELIER_B, duration: 200 },
-            ],
-          },
-        ],
-      },
-    ],
+    tilesets: [{
+      firstgid: 1,
+      name: map.id,
+      image: `${map.id}.png`,
+      imagewidth: sheet.width,
+      imageheight: sheet.height,
+      tilewidth: TILE,
+      tileheight: TILE,
+      columns: COLUMNS,
+      tilecount: tiles.length,
+      margin: 0,
+      spacing: 0,
+    }],
   };
-  writeFileSync(join(publicMapsDir, `${layout.id}.json`), JSON.stringify(tiledMap));
+  writeFileSync(join(publicMapsDir, `${map.id}.json`), JSON.stringify(tiled));
 
-  const walkable = {
-    mapId: layout.id,
-    mapVersion: layout.version,
-    name: layout.name,
-    width: W,
-    height: H,
-    tileSize: TILE,
-    outdoor: layout.outdoor,
-    dark: layout.dark,
-    private: layout.private,
-    background: layout.background,
-    foam: layout.foam,
-    spawn: layout.spawn,
-    areas: layout.areas,
-    rows: walkableRows,
-  };
-  writeFileSync(join(mapsDir, `${layout.id}.json`), JSON.stringify(walkable, null, 2) + "\n");
+  writeFileSync(
+    join(mapsDir, `${map.id}.json`),
+    JSON.stringify({
+      mapId: map.id,
+      mapVersion: map.version,
+      name: map.name,
+      width: W,
+      height: H,
+      tileSize: TILE,
+      outdoor: map.outdoor,
+      dark: map.dark,
+      private: map.private,
+      background: map.background,
+      foam: null,
+      spawn: map.spawn,
+      areas: map.areas,
+      rows,
+    }, null, 2) + "\n",
+  );
 
-  console.log(`\n${layout.name} (${layout.id} v${layout.version}, ${W}×${H})\n${toAscii(layout)}`);
-  return { deck, decorBelow, decorAbove };
+  if (previewDir) {
+    // Whole-map preview with the walkable tiles outlined, for checking layouts by eye.
+    const prev = new Canvas(map.below.width, map.below.height);
+    prev.drawFrom(map.below.canvas, 0, 0, prev.width, prev.height, 0, 0);
+    prev.drawFrom(map.above.canvas, 0, 0, prev.width, prev.height, 0, 0);
+    writePng(join(previewDir, `${map.id}.png`), prev);
+    const walk = new Canvas(prev.width, prev.height);
+    walk.drawFrom(prev, 0, 0, prev.width, prev.height, 0, 0);
+    rows.forEach((r, ty) => [...r].forEach((c, tx) => {
+      if (c === "1") for (let i = 0; i < TILE; i++) { walk.set(tx * TILE + i, ty * TILE, "#00ff0080"); walk.set(tx * TILE, ty * TILE + i, "#00ff0080"); }
+    }));
+    writePng(join(previewDir, `${map.id}.walk.png`), walk);
+  }
+  console.log(`${map.name.padEnd(15)} ${W}×${H} tiles, ${tiles.length} unique tiles, ${rows.join("").split("1").length - 1} walkable`);
 }
 
 const maps = allMaps();
 if (new Set(maps.map((m) => m.id)).size !== maps.length) throw new Error("duplicate map id");
-const built = maps.map((m) => ({ def: m, layers: buildMap(m) }));
-
-// --- Landing-page hero: First Deck rendered to one transparent PNG ----------
-// Same tiles and layers as the game, cropped to the hull and pier, with a few
-// passengers on deck (characters sit between decor-below and decor-above).
-{
-  const { def: layout, layers } = built[0];
-  const HERO = { x: 2, y: 2, w: 44, h: 26 };
-  const hero = new Canvas(HERO.w * TILE, HERO.h * TILE);
-  const blitLayer = (data: number[]) => {
-    for (let ty = HERO.y; ty < HERO.y + HERO.h; ty++)
-      for (let tx = HERO.x; tx < HERO.x + HERO.w; tx++) {
-        const g = data[ty * layout.width + tx];
-        if (!g) continue;
-        const id = g - 1;
-        hero.drawFrom(tilesetCanvas, (id % TILESET_COLUMNS) * TILE, Math.floor(id / TILESET_COLUMNS) * TILE, TILE, TILE, (tx - HERO.x) * TILE, (ty - HERO.y) * TILE);
-      }
-  };
-  blitLayer(layers.deck);
-  blitLayer(layers.decorBelow);
-  // [tileX, tileY, variant, direction row: 0 down, 1 left, 2 right, 3 up]
-  const heroPassengers: Array<[number, number, number, number]> = [
-    [8, 10, 3, 0],
-    [17, 9, 1, 0],
-    [24, 14, 2, 1],
-    [33, 14, 4, 0],
-    [40, 11, 5, 2],
-    [14, 17, 0, 3],
-  ];
-  for (const [tx, ty, variant, dir] of heroPassengers) {
-    if (!isWalkableCell(layout, tx, ty)) throw new Error(`hero passenger on blocked tile ${tx},${ty}`);
-    hero.drawFrom(charactersCanvas, 0, (variant * 4 + dir) * 24, 16, 24, (tx - HERO.x) * TILE, (ty - HERO.y) * TILE - 10);
-  }
-  blitLayer(layers.decorAbove);
-  writePng("ship-hero.png", hero);
-}
-
-console.log(`\nWrote ${maps.length} maps and the placeholder art.`);
+for (const m of maps) buildMap(m);
+console.log(`\nWrote ${maps.length} maps.`);

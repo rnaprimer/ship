@@ -11,6 +11,19 @@ import { POST as logout } from "../logout/route";
 import { GET as passengers } from "../ship/passengers/route";
 import { newSessionToken, sessionTokenHash } from "@/lib/auth/session";
 import { MAPS, SHIP_MAP } from "@/game/maps";
+import { isFootprintWalkable, walkableTiles, type WalkableMap } from "@/game/systems/walkability";
+
+/** The walkable spot farthest from a map's spawn (feet position, pixels). */
+function farFromSpawn(map: WalkableMap) {
+  let best = { x: map.spawn.x, y: map.spawn.y, d: 0 };
+  for (const { tx, ty } of walkableTiles(map)) {
+    const x = tx * 16 + 8;
+    const y = ty * 16 + 12;
+    const d = Math.hypot(x - map.spawn.x, y - map.spawn.y);
+    if (d > best.d && isFootprintWalkable(map, x, y)) best = { x, y, d };
+  }
+  return best;
+}
 
 let ship = "";
 let n = 0;
@@ -105,7 +118,7 @@ describe.skipIf(!hasDb)("sessions and positions (database)", () => {
       await sleep(1100);
       const cases: Array<[unknown, number]> = [
         [pos(5, 5), 422], // ocean
-        [pos(7 * 16 + 8, 11 * 16 + 12), 422], // ship's wheel
+        [pos(86 * 16 + 8, 16 * 16 + 12), 422], // ship's wheel
         [pos(-50, 99999), 422],
         [{ ...pos(0, 0), x: "240" }, 400],
         [{ ...pos(0, 0), x: null }, 400],
@@ -113,7 +126,7 @@ describe.skipIf(!hasDb)("sessions and positions (database)", () => {
         [pos(spawn.x, spawn.y, { mapVersion: SHIP_MAP.mapVersion + 1 }), 409],
         [pos(spawn.x, spawn.y, { mapId: "captains-vault" }), 409], // no such map
         [pos(spawn.x, spawn.y, { mapId: "__proto__" }), 409],
-        [pos(5, 5, { mapId: "grand-lobby", mapVersion: 1 }), 422], // the lobby's wall
+        [pos(5, 5, { mapId: "grand-lobby", mapVersion: MAPS["grand-lobby"].mapVersion }), 422], // outside the lobby
       ];
       for (const [body, status] of cases) {
         const res = await savePos(req("/api/me/position", { body, cookie: a.cookie }));
@@ -126,7 +139,7 @@ describe.skipIf(!hasDb)("sessions and positions (database)", () => {
     it("rejects moves faster than walking speed (teleports)", async () => {
       const a = await board();
       await sleep(1100);
-      const bow = { x: 41 * 16 + 8, y: 9 * 16 + 12 };
+      const bow = farFromSpawn(SHIP_MAP);
       const res = await savePos(req("/api/me/position", { body: pos(bow.x, bow.y), cookie: a.cookie }));
       expect(res.status).toBe(422);
       expect(await res.json()).toEqual({ error: "TOO_FAST" });
@@ -148,8 +161,8 @@ describe.skipIf(!hasDb)("sessions and positions (database)", () => {
       const a = await board();
       const pool = MAPS["swimming-pool"];
       await sleep(1100);
-      // A walkable corner of the pool deck, far from its spawn at the bottom middle.
-      const corner = { x: 3 * 16 + 8, y: 3 * 16 + 12 };
+      // A walkable spot on the pool deck, as far as possible from its spawn.
+      const corner = farFromSpawn(pool);
       const res = await savePos(
         req("/api/me/position", { body: pos(corner.x, corner.y, { mapId: pool.mapId, mapVersion: pool.mapVersion }), cookie: a.cookie }),
       );

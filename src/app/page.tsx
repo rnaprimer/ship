@@ -18,12 +18,12 @@ export default function Home() {
 
       {/* Phones: logo, ship, form. Desktop: logo and form on the left, the ship on the right. */}
       <div className="mx-auto grid w-full max-w-7xl flex-1 content-center items-center gap-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:grid-rows-[auto_auto] lg:gap-x-10 lg:gap-y-20">
-        <h1 className="mx-auto w-full max-w-[480px] lg:col-start-1 lg:row-start-1 lg:mx-0 lg:self-end">
+        <h1 className="mx-auto w-full max-w-[540px] lg:col-start-1 lg:row-start-1 lg:mx-0 lg:self-end">
           <Image
             src="/brand/logo.png"
             alt="Peekatribe"
-            width={545}
-            height={260}
+            width={1821}
+            height={929}
             priority
             sizes="(min-width: 1024px) 480px, 90vw"
             className="h-auto w-full select-none"
@@ -35,8 +35,8 @@ export default function Home() {
           <Image
             src="/brand/ship.png"
             alt="A black-sailed pirate ship, lanterns lit, cutting through the waves"
-            width={745}
-            height={590}
+            width={1384}
+            height={1040}
             priority
             sizes="(min-width: 1024px) 55vw, 100vw"
             className="home-ship mx-auto h-auto w-full max-w-[780px] select-none"

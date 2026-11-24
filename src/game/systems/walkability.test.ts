@@ -40,19 +40,25 @@ describe.each(MAP_IDS)("map %s", (id) => {
       }
   });
 
-  it("blocks every tile that has furniture on it, and every tile with no floor", () => {
-    const decor = layerOf(tiled, "decor-below");
+  it("blocks every tile with nothing painted on it (open water or void)", () => {
     const floor = layerOf(tiled, "deck");
-    let furniture = 0;
-    decor.forEach((gid, i) => {
-      if (gid === 0) return;
-      furniture++;
-      expect(isWalkableTile(m, i % m.width, Math.floor(i / m.width))).toBe(false);
-    });
-    expect(furniture).toBeGreaterThan(8);
     floor.forEach((gid, i) => {
       if (gid === 0) expect(isWalkableTile(m, i % m.width, Math.floor(i / m.width))).toBe(false);
     });
+    expect(walkableTiles(m).length).toBeGreaterThan(300);
+  });
+
+  it("has tall things drawn over the characters", () => {
+    expect(layerOf(tiled, "decor-above").filter((g) => g !== 0).length).toBeGreaterThan(5);
+  });
+
+  it("can reach every named area from the spawn", () => {
+    const reached = new Set<string>();
+    for (const k of reachableFrom(m, start)) {
+      const name = areaAt(m, (k % m.width) * 16 + 8, Math.floor(k / m.width) * 16 + 8);
+      if (name) reached.add(name);
+    }
+    expect([...reached].sort()).toEqual([...new Set(m.areas.map((a) => a.name))].sort());
   });
 
   it("spawns on a walkable footprint, is enclosed, and has no cut-off pockets", () => {
@@ -66,8 +72,7 @@ describe.each(MAP_IDS)("map %s", (id) => {
     expect(reachable.size).toBe(walkableTiles(m).length);
   });
 
-  // First Deck predates this rule (the pier's west end has no area; the HUD keeps the last name).
-  it.skipIf(id === "ship-main")("names every walkable tile with an area", () => {
+  it("names every walkable tile with an area", () => {
     for (const k of reachableFrom(m, start)) {
       expect(areaAt(m, (k % m.width) * 16 + 8, Math.floor(k / m.width) * 16 + 8), `tile ${k}`).not.toBeNull();
     }
@@ -96,21 +101,11 @@ describe("First Deck boundaries", () => {
     expect(reachable.size).toBe(walkableTiles(map).length);
   });
 
-  it("reaches all six areas from the spawn", () => {
-    const reachable = reachableFrom(map, spawnTile);
-    const reachedAreas = new Set<string>();
-    for (const k of reachable) {
-      const name = areaAt(map, (k % map.width) * 16 + 8, Math.floor(k / map.width) * 16 + 8);
-      if (name) reachedAreas.add(name);
+  it("treats rails as walls: the north and south rail rows are blocked", () => {
+    for (let tx = 30; tx <= 90; tx++) {
+      expect(isWalkableTile(map, tx, 6)).toBe(false);
+      expect(isWalkableTile(map, tx, 31)).toBe(false);
     }
-    expect([...reachedAreas].sort()).toEqual(
-      ["Boarding area", "Cabin entrance", "Captain's bridge", "Lounge", "Main deck", "Observation deck"].sort(),
-    );
-  });
-
-  it("treats rails as walls: the north rail row and stern rail column are blocked", () => {
-    for (let tx = 3; tx <= 36; tx++) expect(isWalkableTile(map, tx, 3)).toBe(false);
-    for (let ty = 3; ty <= 19; ty++) expect(isWalkableTile(map, 3, ty)).toBe(false);
   });
 
   it("rejects out-of-range, fractional and non-finite tiles and points", () => {
@@ -126,18 +121,17 @@ describe("First Deck boundaries", () => {
 
 describe("isFootprintWalkable", () => {
   it("rejects a footprint that overlaps a blocked tile even if the centre is walkable", () => {
-    // Spawn tile row 17; lantern at tile (13,18). Standing at the very left of tile 14 overlaps x=13.
-    expect(isWalkableTile(map, 14, 17)).toBe(true);
-    expect(isWalkableTile(map, 13, 17)).toBe(true);
-    // Feet in tile (14,18)'s row would put the box into the lantern at (13,18) when hugging the left edge.
-    expect(isFootprintWalkable(map, 14 * 16 + 2, 18 * 16 + 8)).toBe(false);
-    expect(isFootprintWalkable(map, 14 * 16 + 8, 18 * 16 + 8)).toBe(true);
+    // The ship's wheel blocks tiles (86,16) and (87,16); (85,16) is open rug.
+    expect(isWalkableTile(map, 85, 16)).toBe(true);
+    expect(isWalkableTile(map, 86, 16)).toBe(false);
+    expect(isFootprintWalkable(map, 85 * 16 + 14, 16 * 16 + 8)).toBe(false);
+    expect(isFootprintWalkable(map, 85 * 16 + 6, 16 * 16 + 8)).toBe(true);
   });
 });
 
 describe("findPath", () => {
   it("returns a 4-connected path over walkable tiles only", () => {
-    const to = { tx: 41, ty: 9 }; // observation deck
+    const to = { tx: 88, ty: 20 }; // the helm
     const path = findPath(map, spawnTile, to);
     expect(path).not.toBeNull();
     expect(path![0]).toEqual(spawnTile);
@@ -158,8 +152,8 @@ describe("findPath", () => {
 
 describe("areaAt", () => {
   it("names the area at the spawn and at the ship's wheel", () => {
-    expect(areaAt(map, map.spawn.x, map.spawn.y - 1)).toBe("Boarding area");
-    expect(areaAt(map, 7 * 16 + 8, 10 * 16 + 8)).toBe("Captain's bridge");
-    expect(areaAt(map, 0, 0)).toBeNull();
+    expect(areaAt(map, map.spawn.x, map.spawn.y - 1)).toBe("Main deck");
+    expect(areaAt(map, 86 * 16 + 8, 15 * 16 + 8)).toBe("Helm");
+    expect(areaAt(map, -5, -5)).toBeNull();
   });
 });

@@ -1,15 +1,16 @@
 @import "tailwindcss";
 
 @theme inline {
-  --font-pixel: var(--font-press-start), ui-monospace, monospace;
-  --font-display: var(--font-lexend), ui-sans-serif, system-ui, sans-serif;
+  --font-pixel: var(--font-pixelify), ui-monospace, monospace;
+  --font-display: var(--font-alegreya-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-cinzel), ui-serif, Georgia, serif;
 }
 
 html,
 body {
   background: #0b2a3d;
   color: #f4ead5;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-alegreya-sans), ui-sans-serif, system-ui, sans-serif;
   overscroll-behavior: none;
 }
 

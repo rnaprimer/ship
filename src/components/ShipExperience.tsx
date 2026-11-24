@@ -45,14 +45,14 @@ export function ShipExperience() {
 
   if (failed) {
     return (
-      <div className="font-pixel absolute inset-0 flex items-center justify-center px-6 text-center text-xs leading-relaxed text-[#f4ead5]">
+      <div className="font-pixel absolute inset-0 flex items-center justify-center px-6 text-center text-base leading-relaxed text-[#f4ead5]">
         Couldn&apos;t reach the ship. Check your connection and reload.
       </div>
     );
   }
   if (!data) {
     return (
-      <div className="font-pixel absolute inset-0 flex items-center justify-center text-xs text-[#f4ead5]">
+      <div className="font-pixel absolute inset-0 flex items-center justify-center text-lg text-[#f4ead5]">
         Boarding…
       </div>
     );

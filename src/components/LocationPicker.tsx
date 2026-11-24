@@ -43,8 +43,8 @@ export function LocationPicker({ current, onPick, onClose }: Props) {
           here ? "bg-[#e0b266] ring-4 ring-[#3b2414]/70" : "bg-[#e3f3f9] hover:bg-white"
         }`}
       >
-        <span className="text-base font-bold text-[#111] sm:text-lg">{loc.name}</span>
-        <span className="hidden text-xs leading-snug text-[#0b3a47] sm:block">{here ? "You are here" : loc.blurb}</span>
+        <span className="font-heading text-base font-bold tracking-wide text-[#111] sm:text-lg">{loc.name}</span>
+        <span className="hidden text-sm leading-snug text-[#0b3a47] sm:block">{here ? "You are here" : loc.blurb}</span>
         {here && <span className="text-xs font-medium text-[#3b2414] sm:hidden">You are here</span>}
       </button>
     );
@@ -73,7 +73,7 @@ export function LocationPicker({ current, onPick, onClose }: Props) {
       </div>
 
       <div className="mx-auto -mt-4 w-48 sm:w-60">
-        <Image src="/brand/logo.png" alt="Peekatribe" width={545} height={260} className="h-auto w-full" draggable={false} />
+        <Image src="/brand/logo.png" alt="Peekatribe" width={1821} height={929} className="h-auto w-full" draggable={false} />
       </div>
 
       <div className="mx-auto mt-2 grid max-w-6xl grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-[minmax(0,15rem)_minmax(0,1fr)_minmax(0,15rem)] lg:items-center lg:gap-8">
@@ -81,8 +81,8 @@ export function LocationPicker({ current, onPick, onClose }: Props) {
           <Image
             src="/brand/ship.png"
             alt=""
-            width={745}
-            height={590}
+            width={1384}
+            height={1040}
             sizes="(min-width: 1024px) 50vw, 90vw"
             className="mx-auto h-auto w-full max-w-[560px]"
             draggable={false}

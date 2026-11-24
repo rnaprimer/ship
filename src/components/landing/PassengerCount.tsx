@@ -28,7 +28,7 @@ export function PassengerCount({ variant = "pixel" }: { variant?: "pixel" | "hom
   if (variant === "home") {
     return (
       <div className="flex flex-col items-end gap-2 text-right" aria-live="polite">
-        <p className="font-display flex items-center gap-2 text-base font-bold text-[#1f2a2e] sm:text-lg">
+        <p className="font-display flex items-center gap-2 text-lg font-bold text-[#1f2a2e] sm:text-xl">
           <span className={info ? "" : "opacity-0"}>
             {(info?.passengers ?? 0).toLocaleString()} {info?.passengers === 1 ? "passenger" : "passengers"} aboard
           </span>
@@ -45,7 +45,7 @@ export function PassengerCount({ variant = "pixel" }: { variant?: "pixel" | "hom
 
   return (
     <div className="flex flex-col items-center gap-3 text-center" aria-live="polite">
-      <p className="font-pixel text-xs leading-relaxed text-[#f4ead5] [text-shadow:0_2px_0_#0b2a3d] sm:text-sm">
+      <p className="font-pixel text-base leading-relaxed text-[#f4ead5] [text-shadow:0_2px_0_#0b2a3d] sm:text-lg">
         {info ? (
           <>
             <span className="text-[#ffe08a]">{info.passengers.toLocaleString()}</span>{" "}

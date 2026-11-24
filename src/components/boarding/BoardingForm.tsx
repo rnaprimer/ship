@@ -25,12 +25,12 @@ export function BoardingForm() {
           spellCheck={false}
           inputMode="text"
           maxLength={19}
-          className="font-pixel mb-5 w-full rounded-sm border-4 border-[#3b2414] bg-white px-3 py-3 text-center text-sm tracking-wider outline-none focus:border-[#2f8f83]"
+          className="font-pixel mb-5 w-full rounded-sm border-4 border-[#3b2414] bg-white px-3 py-3 text-center text-xl tracking-wider outline-none focus:border-[#2f8f83]"
         />
         <PixelButton disabled={busy || !complete}>{busy ? "Checking…" : "Continue"}</PixelButton>
         {error && <ErrorNote>{error}</ErrorNote>}
       </form>
-      <p className="mt-6 text-center text-xs text-[#6e4627]">
+      <p className="mt-6 text-center text-sm leading-snug text-[#6e4627]">
         Already aboard? Enter the same boarding pass to get back to your character on any device.
         <br />
         No code yet? Comment on our Instagram Reel and we&apos;ll DM you one.

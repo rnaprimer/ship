@@ -1,18 +1,27 @@
 import type { Metadata, Viewport } from "next";
-import { Lexend, Press_Start_2P } from "next/font/google";
+import { Alegreya_Sans, Cinzel, Pixelify_Sans } from "next/font/google";
 import { BoardingProvider } from "@/components/boarding/BoardingProvider";
 import "./globals.css";
 
-const pixelFont = Press_Start_2P({
-  variable: "--font-press-start",
-  weight: "400",
+// Fonts (owner request 2026-11-24, "fonts you think look good"):
+//   Cinzel         carved maritime serif for headings and the main buttons
+//   Alegreya Sans  warm, readable humanist sans for body text
+//   Pixelify Sans  pixel face for the in-game HUD and boarding cards
+const headingFont = Cinzel({
+  variable: "--font-cinzel",
+  weight: ["600", "700", "800"],
   subsets: ["latin"],
 });
 
-// The home page and the ship map: bold, rounded sans to match the brand art.
-const displayFont = Lexend({
-  variable: "--font-lexend",
-  weight: ["500", "700"],
+const bodyFont = Alegreya_Sans({
+  variable: "--font-alegreya-sans",
+  weight: ["400", "500", "700", "800"],
+  subsets: ["latin"],
+});
+
+const pixelFont = Pixelify_Sans({
+  variable: "--font-pixelify",
+  weight: ["400", "500", "600", "700"],
   subsets: ["latin"],
 });
 
@@ -32,8 +41,8 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${pixelFont.variable} ${displayFont.variable} h-full`}>
-      <body className="min-h-full">
+    <html lang="en" className={`${headingFont.variable} ${bodyFont.variable} ${pixelFont.variable} h-full`}>
+      <body className="font-display min-h-full">
         <BoardingProvider>{children}</BoardingProvider>
       </body>
     </html>

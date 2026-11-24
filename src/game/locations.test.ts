@@ -16,8 +16,8 @@ describe("locations", () => {
     }
   });
 
-  it("keeps First Deck's id and version, so saved positions stay valid", () => {
-    expect(MAPS["ship-main"].mapVersion).toBe(1);
+  it("keeps First Deck's id (its version bumps whenever the layout changes)", () => {
+    expect(MAPS["ship-main"].mapVersion).toBe(2);
     expect(MAPS["ship-main"].name).toBe("First Deck");
   });
 

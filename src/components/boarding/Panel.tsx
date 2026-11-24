@@ -5,7 +5,7 @@ export function BoardingPanel({ title, children }: { title: string; children: Re
   return (
     <main className="flex min-h-dvh items-center justify-center bg-[#0b2a3d] px-4 py-10">
       <div className="w-full max-w-md rounded-sm border-4 border-[#3b2414] bg-[#f4ead5] p-6 text-[#3b2414] shadow-[0_6px_0_#3b2414] sm:p-8">
-        <h1 className="font-pixel mb-6 text-center text-base leading-relaxed sm:text-lg">{title}</h1>
+        <h1 className="font-heading mb-6 text-center text-2xl font-bold leading-tight sm:text-3xl">{title}</h1>
         {children}
       </div>
     </main>
@@ -17,7 +17,7 @@ export function PixelButton({ children, disabled, type = "submit" }: { children:
     <button
       type={type}
       disabled={disabled}
-      className="font-pixel w-full rounded-sm border-4 border-[#3b2414] bg-[#e0b266] px-4 py-4 text-xs text-[#3b2414] shadow-[0_4px_0_#3b2414] enabled:active:translate-y-1 enabled:active:shadow-none disabled:opacity-60"
+      className="font-heading w-full rounded-sm border-4 border-[#3b2414] bg-[#e0b266] px-4 py-3.5 text-lg font-bold tracking-wide text-[#3b2414] shadow-[0_4px_0_#3b2414] enabled:active:translate-y-1 enabled:active:shadow-none disabled:opacity-60"
     >
       {children}
     </button>

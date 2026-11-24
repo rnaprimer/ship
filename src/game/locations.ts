@@ -7,14 +7,14 @@ export type Location = { mapId: string; name: string; blurb: string };
 
 export const LOCATIONS: { left: Location[]; right: Location[] } = {
   left: [
-    { mapId: "grand-lobby", name: "Grand Lobby", blurb: "Marble, chandeliers and the grand staircase" },
-    { mapId: "personal-cabin", name: "Personal Cabin", blurb: "Your own quiet room. Only you can see in" },
-    { mapId: "swimming-pool", name: "Swimming Pool", blurb: "Sun loungers and a pool bar on deck" },
+    { mapId: "grand-lobby", name: "Grand Lobby", blurb: "Twin staircases, lounges and the voyage board" },
+    { mapId: "personal-cabin", name: "Personal Cabin", blurb: "Your own room: bed, desk and stern windows" },
+    { mapId: "swimming-pool", name: "Swimming Pool", blurb: "Pool, cabana, bar and sun loungers" },
   ],
   right: [
-    { mapId: "secret-deck", name: "Secret Deck", blurb: "Candlelight, charts and treasure" },
-    { mapId: "ship-main", name: "First Deck", blurb: "The main deck, where everyone boards" },
-    { mapId: "second-deck", name: "Second Deck", blurb: "Cannons, hammocks and the crew's mess" },
+    { mapId: "secret-deck", name: "Secret Deck", blurb: "Brig, treasure vault, map room and more" },
+    { mapId: "ship-main", name: "First Deck", blurb: "Masts, the helm and the captain's cabin" },
+    { mapId: "second-deck", name: "Second Deck", blurb: "Bunks, armoury, galley, mess and cargo" },
   ],
 };
 

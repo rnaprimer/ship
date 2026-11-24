@@ -77,9 +77,13 @@ describe("moveToward (frame-rate independence)", () => {
 describe("pickZoom", () => {
   const MAP_W = 768;
   const MAP_H = 448;
-  it("uses 3× on phones and 4× on desktop", () => {
-    expect(pickZoom(390, 844, true, MAP_W, MAP_H)).toBe(3);
-    expect(pickZoom(1440, 900, false, MAP_W, MAP_H)).toBe(4);
+  it("uses 2× on phones and 3× on desktop", () => {
+    expect(pickZoom(390, 844, true, MAP_W, MAP_H)).toBe(2);
+    expect(pickZoom(1440, 900, false, MAP_W, MAP_H)).toBe(3);
+  });
+
+  it("centres interiors instead of zooming in to fill the window", () => {
+    expect(pickZoom(3840, 2160, false, 480, 360, false)).toBe(3);
   });
 
   it("steps down for small desktop windows", () => {

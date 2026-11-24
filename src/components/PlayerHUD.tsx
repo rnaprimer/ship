@@ -68,7 +68,7 @@ export function PlayerHUD({ bus }: { bus: GameBus }) {
         onClick={() => setPickerOpen(true)}
         disabled={!location}
         aria-haspopup="dialog"
-        className="font-display pointer-events-auto absolute right-[calc(env(safe-area-inset-right)+12px)] top-[calc(env(safe-area-inset-top)+12px)] flex items-center gap-2 rounded-full border-2 border-[#3b2414] bg-[#e0b266] px-4 py-2 text-sm font-bold text-[#3b2414] shadow-[0_3px_0_#3b2414] [text-shadow:none] active:translate-y-0.5 active:shadow-none disabled:opacity-0"
+        className="font-display pointer-events-auto absolute right-[calc(env(safe-area-inset-right)+12px)] top-[calc(env(safe-area-inset-top)+12px)] flex items-center gap-2 rounded-full border-2 border-[#3b2414] bg-[#e0b266] px-4 py-2 text-sm font-bold text-[#3b2414] shadow-[0_3px_0_#3b2414] [text-shadow:none] font-heading tracking-wide active:translate-y-0.5 active:shadow-none disabled:opacity-0"
       >
         <svg viewBox="0 0 20 20" className="size-4" aria-hidden fill="currentColor">
           <path d="M7 2 1 4.5v13.5l6-2.5 6 2.5 6-2.5V2l-6 2.5L7 2Zm0 2.2 6 2.5v11.1l-6-2.5V4.2Z" />
@@ -78,7 +78,7 @@ export function PlayerHUD({ bus }: { bus: GameBus }) {
       {arrival && (
         <div
           key={`arrival-${arrival.key}`}
-          className="hud-fade absolute inset-x-0 top-[38%] text-center text-base leading-relaxed sm:text-2xl"
+          className="hud-fade font-heading absolute inset-x-0 top-[38%] text-center text-2xl font-bold tracking-wide sm:text-4xl"
           aria-live="polite"
         >
           {arrival.name}
@@ -87,20 +87,20 @@ export function PlayerHUD({ bus }: { bus: GameBus }) {
       {area && (
         <div
           key={`area-${areaKey}`}
-          className="hud-fade absolute inset-x-0 top-[calc(env(safe-area-inset-top)+16px)] text-center text-[11px] tracking-wide sm:text-sm"
+          className="hud-fade absolute inset-x-0 top-[calc(env(safe-area-inset-top)+16px)] text-center text-sm tracking-wide sm:text-lg"
         >
           {area}
         </div>
       )}
       {welcome && (
         <div className="absolute inset-x-0 top-[calc(env(safe-area-inset-top)+48px)] flex justify-center px-4">
-          <div className="rounded-sm border-4 border-[#3b2414] bg-[#f4ead5] px-4 py-3 text-center text-[10px] leading-relaxed text-[#3b2414] shadow-[0_4px_0_#3b2414] [text-shadow:none] sm:text-xs">
+          <div className="rounded-sm border-4 border-[#3b2414] bg-[#f4ead5] px-4 py-3 text-center text-base leading-snug text-[#3b2414] shadow-[0_4px_0_#3b2414] [text-shadow:none] sm:text-lg">
             {welcome}
           </div>
         </div>
       )}
       {showKeysHint && (
-        <div className="absolute inset-x-0 bottom-6 text-center text-[10px]">WASD or arrow keys to walk</div>
+        <div className="absolute inset-x-0 bottom-6 text-center text-sm">WASD or arrow keys to walk</div>
       )}
       {pickerOpen && <LocationPicker current={location?.mapId ?? null} onPick={travel} onClose={closePicker} />}
       {debug && stats && (

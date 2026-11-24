@@ -1,5 +1,5 @@
 import * as Phaser from "phaser";
-import { ASSETS, mapKey } from "./PreloadScene";
+import { ASSETS, mapKey, tilesKey } from "./PreloadScene";
 import { REGISTRY } from "../registry";
 import type { GameBus } from "../events";
 import type { PassengerProfile, PlayerProfile, PositionSaver, SavedPosition, StartPosition } from "../types";
@@ -65,8 +65,9 @@ export class ShipScene extends Phaser.Scene {
     const start = saved && savedMap && isFootprintWalkable(savedMap, saved.x, saved.y) ? saved : this.map.spawn;
 
     const map = this.make.tilemap({ key: mapKey(this.map.mapId) });
-    const tileset = map.addTilesetImage("ship-tiles", ASSETS.tiles);
-    if (!tileset) throw new Error(`Tileset ship-tiles missing from ${this.map.mapId}`);
+    // Each map is painted as one picture and cut into its own tileset.
+    const tileset = map.addTilesetImage(this.map.mapId, tilesKey(this.map.mapId));
+    if (!tileset) throw new Error(`Tileset missing from ${this.map.mapId}`);
     this.mapW = map.widthInPixels;
     this.mapH = map.heightInPixels;
     this.cameras.main.setBackgroundColor(this.map.background);
@@ -81,7 +82,6 @@ export class ShipScene extends Phaser.Scene {
       : null;
 
     map.createLayer("deck", tileset)?.setDepth(DEPTH.deck);
-    map.createLayer("decor-below", tileset)?.setDepth(DEPTH.decorBelow);
     map.createLayer("decor-above", tileset)?.setDepth(DEPTH.decorAbove);
     const collision = map.createLayer("collision", tileset);
     if (!collision) throw new Error(`collision layer missing from ${this.map.mapId}`);
