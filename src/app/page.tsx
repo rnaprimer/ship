@@ -1,58 +1,64 @@
-import Link from "next/link";
+import Image from "next/image";
 import { PassengerCount } from "@/components/landing/PassengerCount";
-
-const HERO_W = 704;
-const HERO_H = 416;
+import { HomeBoarding } from "@/components/landing/HomeBoarding";
 
 /**
- * Landing page (BRIEF §3 Stage B): the ship on an animated ocean, retro type,
- * the live passenger count and the boarding call to action. Static shell; the
- * count loads client-side from /api/ship.
+ * Home page: the Peekatribe logo and ship on a bright sky, the live passenger
+ * count, and the boarding-pass form. New passengers go on to pick a name;
+ * returning ones go straight to the ship.
+ *
+ * The logo and ship are /brand/logo.png and /brand/ship.png (transparent PNGs).
  */
 export default function Home() {
   return (
-    <main className="landing-ocean relative flex min-h-dvh flex-col items-center overflow-hidden px-4 pb-10 pt-[calc(env(safe-area-inset-top)+40px)] text-[#f4ead5]">
-      <header className="relative z-10 flex max-w-xl flex-col items-center gap-4 text-center">
-        <h1 className="font-pixel text-2xl leading-relaxed [text-shadow:0_3px_0_#0b2a3d] sm:text-4xl">
-          The Internet Ship
-        </h1>
-        <p className="max-w-md rounded-sm bg-[#0b2a3d]/70 px-4 py-3 text-sm leading-relaxed text-[#e6f2f6] sm:text-base">
-          Comment on our Reel, get your boarding pass by DM, pick a name, and walk the deck with everyone
-          who came aboard.
-        </p>
-      </header>
+    <main className="home-sky font-display relative flex min-h-dvh flex-col overflow-hidden px-4 pb-10 pt-[calc(env(safe-area-inset-top)+20px)] sm:px-8 lg:px-14">
+      <div className="flex justify-end">
+        <PassengerCount variant="home" />
+      </div>
 
-      <div className="landing-stage relative z-0 my-8 w-full" style={{ height: HERO_H }}>
-        <div className="landing-pan absolute left-1/2 top-0" style={{ width: HERO_W, height: HERO_H }}>
-          {/* eslint-disable-next-line @next/next/no-img-element -- pixel art must not be resampled */}
-          <img
-            src="/game/ship-hero.png"
-            width={HERO_W}
-            height={HERO_H}
-            alt="A pixel-art ship with passengers on deck, a gangway and a small pier"
-            className="landing-bob block select-none [image-rendering:pixelated]"
+      {/* Phones: logo, ship, form. Desktop: logo and form on the left, the ship on the right. */}
+      <div className="mx-auto grid w-full max-w-7xl flex-1 content-center items-center gap-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:grid-rows-[auto_auto] lg:gap-x-10 lg:gap-y-20">
+        <h1 className="mx-auto w-full max-w-[480px] lg:col-start-1 lg:row-start-1 lg:mx-0 lg:self-end">
+          <Image
+            src="/brand/logo.png"
+            alt="Peekatribe"
+            width={545}
+            height={260}
+            priority
+            sizes="(min-width: 1024px) 480px, 90vw"
+            className="h-auto w-full select-none"
+            draggable={false}
+          />
+        </h1>
+
+        <div className="relative -mx-4 sm:mx-0 lg:col-start-2 lg:row-span-2 lg:row-start-1">
+          <Image
+            src="/brand/ship.png"
+            alt="A black-sailed pirate ship, lanterns lit, cutting through the waves"
+            width={745}
+            height={590}
+            priority
+            sizes="(min-width: 1024px) 55vw, 100vw"
+            className="home-ship mx-auto h-auto w-full max-w-[780px] select-none"
             draggable={false}
           />
         </div>
+
+        <div className="flex justify-center lg:col-start-1 lg:row-start-2 lg:justify-start lg:self-start lg:pl-24">
+          <HomeBoarding />
+        </div>
       </div>
 
-      <section className="relative z-10 flex flex-col items-center gap-6">
-        <PassengerCount />
-        <Link
-          href="/board"
-          className="font-pixel rounded-sm border-4 border-[#3b2414] bg-[#e0b266] px-7 py-4 text-sm text-[#3b2414] shadow-[0_5px_0_#3b2414] transition-transform hover:-translate-y-0.5 active:translate-y-1 active:shadow-none"
-        >
-          Board the ship
-        </Link>
+      <footer className="mt-6 flex justify-center lg:justify-start">
         <a
           href="https://www.instagram.com/peekatribe/"
-          className="rounded-sm bg-[#0b2a3d]/70 px-3 py-1.5 text-xs text-[#e6f2f6] underline underline-offset-4"
+          className="text-sm font-medium text-[#0b3a47] underline underline-offset-4"
           rel="noopener noreferrer"
           target="_blank"
         >
-          @peekatribe on Instagram
+          No boarding pass yet? Comment on our Reel @peekatribe
         </a>
-      </section>
+      </footer>
     </main>
   );
 }

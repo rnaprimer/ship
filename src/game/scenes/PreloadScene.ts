@@ -1,16 +1,18 @@
 import * as Phaser from "phaser";
-import { ASSET_BASE } from "../maps";
+import { ASSET_BASE, MAP_IDS } from "../maps";
 import { CHARACTER_FRAME, CHARACTER_TEXTURE, createCharacterAnims } from "../entities/characterAnims";
 
 export const ASSETS = {
   tiles: "ship-tiles",
-  map: "ship-map",
   ocean: "ocean",
   foam: "foam",
   font: "ship-font",
 } as const;
 
-/** Loads the map, tileset, sprites and font, with a simple progress bar. */
+/** Phaser cache key of a map's Tiled JSON. */
+export const mapKey = (mapId: string) => `map:${mapId}`;
+
+/** Loads every map, tileset, sprites and font, with a simple progress bar. */
 export class PreloadScene extends Phaser.Scene {
   constructor() {
     super("preload");
@@ -29,7 +31,7 @@ export class PreloadScene extends Phaser.Scene {
 
     this.load.setPath(ASSET_BASE);
     this.load.image(ASSETS.tiles, "ship-tiles.png");
-    this.load.tilemapTiledJSON(ASSETS.map, "ship.json");
+    for (const id of MAP_IDS) this.load.tilemapTiledJSON(mapKey(id), `maps/${id}.json`);
     this.load.image(ASSETS.ocean, "ocean.png");
     this.load.image(ASSETS.foam, "foam.png");
     this.load.spritesheet(CHARACTER_TEXTURE, "characters.png", {

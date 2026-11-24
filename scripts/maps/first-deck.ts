@@ -1,51 +1,18 @@
 /**
- * Source layout for the ship map (48×28 tiles of 16 px). The bow points right.
+ * First Deck: the main deck players land on after boarding (48×28 tiles of
+ * 16 px). The bow points right. Character legend: ./kit.ts.
  *
- * `floor` chars (deck layer):
- *   walkable:  .  deck   :  deck in shadow   =  bridge   ;  bridge in shadow
- *              s  stairs  g  gangway  p  pier  r  rug  x  hatch grate
- *   blocking:  -  _  [  ]  rails (N, S, W, E)   1 2 3 4  rail corners (NW NE SW SE)
- *              \  /  bow rails   I  inner rail   h  hull   o  hull porthole   ~  ocean
- * `obj` chars (decor-below layer, always blocking):
- *   B barrel  C crate  M mast  L lantern  R rope  H ship wheel  T table  b bench
- *   P telescope  K cabin roof  W wall  w wall with window  D door
- * Masts and lanterns also get tiles on the decor-above layer (drawn over players).
- *
- * Run `npm run build:assets` after editing to regenerate the Tiled map,
- * walkable.json and the placeholder art.
+ * Its map id stays "ship-main" so positions saved before the other decks
+ * existed remain valid.
  */
-export const MAP_ID = "ship-main";
-/** Bump when the walkable layout changes, so saved positions fall back to spawn. */
-export const MAP_VERSION = 1;
-export const MAP_W = 48;
-export const MAP_H = 28;
+import { canvas, type AreaRect, type MapDef } from "./kit.ts";
 
-export const WALKABLE_FLOOR = new Set([".", ":", "=", ";", "s", "g", "p", "r", "x"]);
+const MAP_W = 48;
+const MAP_H = 28;
 
-export type AreaRect = { name: string; x: number; y: number; w: number; h: number };
-
-export type Layout = {
-  floor: string[][];
-  obj: string[][];
-  /** Tiles drawn above characters: [x, y, tileName]. */
-  above: Array<[number, number, "MAST_POLE" | "YARD_L" | "YARD_M" | "YARD_R" | "MAST_TOP" | "FLAG_A" | "LANTERN_TOP_A"]>;
-  /** In priority order: the first rect containing the player names the area. Tile units. */
-  areas: AreaRect[];
-  /** Spawn point in pixels (feet position) and facing. */
-  spawn: { x: number; y: number; direction: "up" };
-};
-
-export function buildLayout(): Layout {
-  const floor = Array.from({ length: MAP_H }, () => Array<string>(MAP_W).fill("~"));
-  const obj = Array.from({ length: MAP_H }, () => Array<string>(MAP_W).fill(""));
-  const above: Layout["above"] = [];
-
-  const fill = (g: string[][], x: number, y: number, w: number, h: number, ch: string) => {
-    for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) g[yy][xx] = ch;
-  };
-  const put = (x: number, y: number, ch: string) => {
-    obj[y][x] = ch;
-  };
+export function firstDeck(): MapDef {
+  const g = canvas(MAP_W, MAP_H);
+  const { floor, obj, fill, put } = g;
 
   // --- Hull and main deck -------------------------------------------------
   fill(floor, 4, 4, 33, 15, ".");
@@ -150,16 +117,7 @@ export function buildLayout(): Layout {
   put(39, 14, "b");
   put(37, 7, "L");
 
-  // --- Tiles drawn above characters ----------------------------------------
-  for (let y = 0; y < MAP_H; y++)
-    for (let x = 0; x < MAP_W; x++) {
-      if (obj[y][x] === "M") {
-        above.push([x, y - 1, "MAST_POLE"], [x, y - 2, "MAST_POLE"]);
-        above.push([x - 1, y - 3, "YARD_L"], [x, y - 3, "YARD_M"], [x + 1, y - 3, "YARD_R"]);
-        above.push([x, y - 4, "MAST_TOP"], [x, y - 5, "FLAG_A"]);
-      }
-      if (obj[y][x] === "L") above.push([x, y - 1, "LANTERN_TOP_A"]);
-    }
+  g.finishAbove();
 
   const areas: AreaRect[] = [
     { name: "Cabin entrance", x: 15, y: 8, w: 5, h: 2 },
@@ -170,13 +128,22 @@ export function buildLayout(): Layout {
     { name: "Main deck", x: 12, y: 4, w: 25, h: 15 },
   ];
 
-  return { floor, obj, above, areas, spawn: { x: 15 * 16, y: 17 * 16 + 12, direction: "up" } };
+  return {
+    id: "ship-main",
+    version: 1,
+    name: "First Deck",
+    width: MAP_W,
+    height: MAP_H,
+    outdoor: true,
+    dark: false,
+    private: false,
+    background: "#0b2a3d",
+    foam: { x: 3, y: 22, w: 34 },
+    floor,
+    obj,
+    above: g.above,
+    areas,
+    spawn: { x: 15 * 16, y: 17 * 16 + 12, direction: "up" },
+  };
 }
 
-export function isWalkableCell(layout: Layout, x: number, y: number): boolean {
-  return WALKABLE_FLOOR.has(layout.floor[y][x]) && layout.obj[y][x] === "";
-}
-
-export function toAscii(layout: Layout): string {
-  return layout.floor.map((row, y) => row.map((ch, x) => layout.obj[y][x] || ch).join("")).join("\n");
-}

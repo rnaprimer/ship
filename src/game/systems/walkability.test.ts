@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { SHIP_MAP } from "../maps";
+import { MAP_IDS, MAPS, SHIP_MAP } from "../maps";
 import {
   areaAt,
   findPath,
@@ -14,54 +14,70 @@ import {
 } from "./walkability";
 
 type TiledLayer = { name: string; type: string; data?: number[]; objects?: Array<{ name: string }> };
-const tiled = JSON.parse(readFileSync(join(process.cwd(), "public/game/ship.json"), "utf8")) as {
-  width: number;
-  height: number;
-  layers: TiledLayer[];
-  properties: Array<{ name: string; value: unknown }>;
-};
-const layer = (name: string) => {
+type TiledMap = { width: number; height: number; layers: TiledLayer[]; properties: Array<{ name: string; value: unknown }> };
+const tiledFor = (id: string) =>
+  JSON.parse(readFileSync(join(process.cwd(), `public/game/maps/${id}.json`), "utf8")) as TiledMap;
+const layerOf = (tiled: TiledMap, name: string) => {
   const l = tiled.layers.find((x) => x.name === name);
   if (!l?.data) throw new Error(`missing layer ${name}`);
   return l.data;
 };
 
-const map = SHIP_MAP;
-const spawnTile = tileOf(map, map.spawn.x, map.spawn.y - 1);
-const key = (tx: number, ty: number) => ty * map.width + tx;
+describe.each(MAP_IDS)("map %s", (id) => {
+  const m = MAPS[id];
+  const tiled = tiledFor(id);
+  const start = tileOf(m, m.spawn.x, m.spawn.y - 1);
 
-describe("walkable.json", () => {
-  it("matches the Tiled map's size, version and collision layer exactly", () => {
-    expect(map.width).toBe(tiled.width);
-    expect(map.height).toBe(tiled.height);
-    expect(tiled.properties.find((p) => p.name === "mapVersion")?.value).toBe(map.mapVersion);
-    const collision = layer("collision");
-    for (let ty = 0; ty < map.height; ty++)
-      for (let tx = 0; tx < map.width; tx++) {
-        expect(isWalkableTile(map, tx, ty), `tile ${tx},${ty}`).toBe(collision[key(tx, ty)] === 0);
+  it("matches the Tiled map's id, size, version and collision layer exactly", () => {
+    expect(m.width).toBe(tiled.width);
+    expect(m.height).toBe(tiled.height);
+    expect(tiled.properties.find((p) => p.name === "mapId")?.value).toBe(id);
+    expect(tiled.properties.find((p) => p.name === "mapVersion")?.value).toBe(m.mapVersion);
+    const collision = layerOf(tiled, "collision");
+    for (let ty = 0; ty < m.height; ty++)
+      for (let tx = 0; tx < m.width; tx++) {
+        expect(isWalkableTile(m, tx, ty), `tile ${tx},${ty}`).toBe(collision[ty * m.width + tx] === 0);
       }
   });
 
-  it("blocks every tile that has furniture or decor on it", () => {
-    const decor = layer("decor-below");
+  it("blocks every tile that has furniture on it, and every tile with no floor", () => {
+    const decor = layerOf(tiled, "decor-below");
+    const floor = layerOf(tiled, "deck");
     let furniture = 0;
     decor.forEach((gid, i) => {
       if (gid === 0) return;
       furniture++;
-      expect(isWalkableTile(map, i % map.width, Math.floor(i / map.width))).toBe(false);
+      expect(isWalkableTile(m, i % m.width, Math.floor(i / m.width))).toBe(false);
     });
-    expect(furniture).toBeGreaterThan(40);
+    expect(furniture).toBeGreaterThan(8);
+    floor.forEach((gid, i) => {
+      if (gid === 0) expect(isWalkableTile(m, i % m.width, Math.floor(i / m.width))).toBe(false);
+    });
   });
 
-  it("blocks every tile with no deck (ocean)", () => {
-    const deck = layer("deck");
-    deck.forEach((gid, i) => {
-      if (gid === 0) expect(isWalkableTile(map, i % map.width, Math.floor(i / map.width))).toBe(false);
-    });
+  it("spawns on a walkable footprint, is enclosed, and has no cut-off pockets", () => {
+    expect(isFootprintWalkable(m, m.spawn.x, m.spawn.y)).toBe(true);
+    const reachable = reachableFrom(m, start);
+    for (const k of reachable) {
+      const tx = k % m.width;
+      const ty = Math.floor(k / m.width);
+      expect(tx > 0 && ty > 0 && tx < m.width - 1 && ty < m.height - 1, `edge tile ${tx},${ty}`).toBe(true);
+    }
+    expect(reachable.size).toBe(walkableTiles(m).length);
+  });
+
+  // First Deck predates this rule (the pier's west end has no area; the HUD keeps the last name).
+  it.skipIf(id === "ship-main")("names every walkable tile with an area", () => {
+    for (const k of reachableFrom(m, start)) {
+      expect(areaAt(m, (k % m.width) * 16 + 8, Math.floor(k / m.width) * 16 + 8), `tile ${k}`).not.toBeNull();
+    }
   });
 });
 
-describe("ship boundaries", () => {
+const map = SHIP_MAP;
+const spawnTile = tileOf(map, map.spawn.x, map.spawn.y - 1);
+
+describe("First Deck boundaries", () => {
   it("spawns the player on a walkable footprint", () => {
     expect(isFootprintWalkable(map, map.spawn.x, map.spawn.y)).toBe(true);
   });

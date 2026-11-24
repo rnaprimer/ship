@@ -137,6 +137,9 @@ export function savePosition(args: {
   x: number;
   y: number;
   direction: string;
+  /** The map's spawn point: a save on a newly entered map must be within walking distance of it. */
+  spawnX: number;
+  spawnY: number;
   maxSpeed: number;
   slack: number;
   minIntervalMs: number;
@@ -150,6 +153,8 @@ export function savePosition(args: {
       p_x: args.x,
       p_y: args.y,
       p_direction: args.direction,
+      p_spawn_x: args.spawnX,
+      p_spawn_y: args.spawnY,
       p_max_speed: args.maxSpeed,
       p_slack: args.slack,
       p_min_interval_ms: args.minIntervalMs,

@@ -1,12 +1,12 @@
 import * as Phaser from "phaser";
-import { ASSETS } from "./PreloadScene";
+import { ASSETS, mapKey } from "./PreloadScene";
 import { REGISTRY } from "../registry";
 import type { GameBus } from "../events";
 import type { PassengerProfile, PlayerProfile, PositionSaver, SavedPosition, StartPosition } from "../types";
-import { SHIP_MAP } from "../maps";
+import { DEFAULT_MAP_ID, getMap, MAPS, type MapId } from "../maps";
 import { Player } from "../entities/Player";
 import { AmbientPassenger } from "../entities/AmbientPassenger";
-import { areaAt, isFootprintWalkable, reachableFrom, tileOf } from "../systems/walkability";
+import { areaAt, isFootprintWalkable, reachableFrom, tileOf, type WalkableMap } from "../systems/walkability";
 import { combineInput, JOYSTICK_DEADZONE, type Vec } from "../systems/movement";
 import { pickZoom } from "../systems/zoom";
 
@@ -16,14 +16,20 @@ export const DEPTH = {
   deck: 0,
   decorBelow: 5,
   characters: 10, // + y / 10000 for y-sorting
+  nightTint: 15,
   decorAbove: 20,
 } as const;
+
+/** Scene data: which map to open. Empty on first load (the saved position decides). */
+export type ShipSceneData = { mapId?: MapId };
 
 type MoveKeys = Record<"up" | "down" | "left" | "right" | "w" | "a" | "s" | "d", Phaser.Input.Keyboard.Key>;
 
 export class ShipScene extends Phaser.Scene {
-  private ocean!: Phaser.GameObjects.TileSprite;
-  private foam!: Phaser.GameObjects.TileSprite;
+  private map!: WalkableMap;
+  private ocean: Phaser.GameObjects.TileSprite | null = null;
+  private foam: Phaser.GameObjects.TileSprite | null = null;
+  private traveling = false;
   private player!: Player;
   private keys?: MoveKeys;
   private stick: Vec = { x: 0, y: 0 };
@@ -42,52 +48,70 @@ export class ShipScene extends Phaser.Scene {
     super("ship");
   }
 
-  create() {
+  create(data: ShipSceneData = {}) {
     this.bus = this.registry.get(REGISTRY.bus) as GameBus;
     const profile = this.registry.get(REGISTRY.player) as PlayerProfile;
+    // The scene instance is reused on every trip: reset per-visit state.
+    this.traveling = false;
+    this.currentArea = null;
+    this.passengers = [];
+    this.stick = { x: 0, y: 0 };
 
-    const map = this.make.tilemap({ key: ASSETS.map });
+    // Where to start: the map we travelled to (at its spawn), else the saved
+    // position if it is still valid, else First Deck's spawn.
+    const saved = data.mapId ? null : (this.registry.get(REGISTRY.initialPosition) as StartPosition);
+    const savedMap = saved ? getMap(saved.mapId) : null;
+    this.map = data.mapId ? MAPS[data.mapId] : (savedMap ?? MAPS[DEFAULT_MAP_ID]);
+    const start = saved && savedMap && isFootprintWalkable(savedMap, saved.x, saved.y) ? saved : this.map.spawn;
+
+    const map = this.make.tilemap({ key: mapKey(this.map.mapId) });
     const tileset = map.addTilesetImage("ship-tiles", ASSETS.tiles);
-    if (!tileset) throw new Error("Tileset ship-tiles missing from ship.json");
+    if (!tileset) throw new Error(`Tileset ship-tiles missing from ${this.map.mapId}`);
     this.mapW = map.widthInPixels;
     this.mapH = map.heightInPixels;
+    this.cameras.main.setBackgroundColor(this.map.background);
 
     // Ocean: a world-space tile sprite slightly larger than the map so it can drift and bob.
     const pad = 32;
-    this.ocean = this.add
-      .tileSprite(-pad, -pad, this.mapW + pad * 2, this.mapH + pad * 2, ASSETS.ocean)
-      .setOrigin(0)
-      .setDepth(DEPTH.ocean);
+    this.ocean = this.map.outdoor
+      ? this.add
+          .tileSprite(-pad, -pad, this.mapW + pad * 2, this.mapH + pad * 2, ASSETS.ocean)
+          .setOrigin(0)
+          .setDepth(DEPTH.ocean)
+      : null;
 
     map.createLayer("deck", tileset)?.setDepth(DEPTH.deck);
     map.createLayer("decor-below", tileset)?.setDepth(DEPTH.decorBelow);
     map.createLayer("decor-above", tileset)?.setDepth(DEPTH.decorAbove);
     const collision = map.createLayer("collision", tileset);
-    if (!collision) throw new Error("collision layer missing from ship.json");
+    if (!collision) throw new Error(`collision layer missing from ${this.map.mapId}`);
     collision.setVisible(false);
     collision.setCollisionByExclusion([-1]);
 
-    // Foam where the hull meets the water (row 22, x 3..36).
-    this.foam = this.add
-      .tileSprite(3 * 16, 22 * 16, 34 * 16, 6, ASSETS.foam)
-      .setOrigin(0)
-      .setDepth(DEPTH.foam);
+    // Foam where the hull meets the water.
+    const foam = this.map.foam;
+    this.foam = foam
+      ? this.add.tileSprite(foam.x * 16, foam.y * 16, foam.w * 16, 6, ASSETS.foam).setOrigin(0).setDepth(DEPTH.foam)
+      : null;
+    if (this.map.dark) {
+      // Night: dim everything below the lantern and candle glows.
+      this.add.rectangle(-pad, -pad, this.mapW + pad * 2, this.mapH + pad * 2, 0x0a0a26, 0.5).setOrigin(0).setDepth(DEPTH.nightTint);
+    }
 
     // --- Player ---
-    // Restore the last valid position (validated by the server), or use the spawn point.
-    const saved = this.registry.get(REGISTRY.initialPosition) as StartPosition;
-    const start = saved && isFootprintWalkable(SHIP_MAP, saved.x, saved.y) ? saved : SHIP_MAP.spawn;
     this.player = new Player(this, start.x, start.y, profile.characterVariant, profile.username, start.direction);
-    this.lastSaved = { x: start.x, y: start.y };
+    // After a trip, save the new map on the next periodic save even if the player stands still.
+    this.lastSaved = data.mapId ? { x: Number.NaN, y: Number.NaN } : { x: start.x, y: start.y };
     this.physics.world.setBounds(0, 0, this.mapW, this.mapH);
     this.physics.add.collider(this.player.sprite, collision);
     this.playSpawnEffect();
-    this.spawnPassengers((this.registry.get(REGISTRY.passengers) as PassengerProfile[]) ?? []);
+    // Your own cabin is private: nobody else is shown there.
+    if (!this.map.private) this.spawnPassengers((this.registry.get(REGISTRY.passengers) as PassengerProfile[]) ?? []);
 
     // --- Camera ---
     const cam = this.cameras.main;
-    cam.setBounds(0, 0, this.mapW, this.mapH);
     cam.startFollow(this.player.sprite, true, 1, 1, 0, 12);
+    cam.fadeIn(350, 11, 42, 61);
     this.applyZoom();
     this.scale.on("resize", this.applyZoom, this);
     this.cleanup.push(() => this.scale.off("resize", this.applyZoom, this));
@@ -107,6 +131,7 @@ export class ShipScene extends Phaser.Scene {
       }) as MoveKeys;
     }
     this.cleanup.push(this.bus.on("joystick", (v) => (this.stick = v)));
+    this.cleanup.push(this.bus.on("travel", ({ mapId }) => this.travel(mapId)));
 
     // --- Persistence: every 15 s if moved, and when the page is hidden or closed ---
     this.time.addEvent({ delay: 15_000, loop: true, callback: () => this.savePosition(false) });
@@ -132,13 +157,37 @@ export class ShipScene extends Phaser.Scene {
       this.cleanup = [];
     });
 
-    this.bus.emit("ready", { username: profile.username });
+    this.bus.emit("location", { mapId: this.map.mapId, name: this.map.name });
+    if (!data.mapId) this.bus.emit("ready", { username: profile.username });
+  }
+
+  /** Fades out, saves where we were, and reopens the scene on the other map's spawn. */
+  private travel(mapId: string) {
+    const target = getMap(mapId);
+    if (!target || this.traveling) return;
+    if (target.mapId === this.map.mapId) return;
+    this.traveling = true;
+    this.stick = { x: 0, y: 0 };
+    this.player.applyInput({ x: 0, y: 0 });
+    const cam = this.cameras.main;
+    cam.fadeOut(300, 11, 42, 61);
+    cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+      this.scene.restart({ mapId: target.mapId as MapId } satisfies ShipSceneData);
+    });
   }
 
   private applyZoom() {
     const isTouch = window.matchMedia("(pointer: coarse)").matches;
     const { width, height } = this.scale.gameSize;
-    this.cameras.main.setZoom(pickZoom(width, height, isTouch, this.mapW, this.mapH));
+    const cam = this.cameras.main;
+    const zoom = pickZoom(width, height, isTouch, this.mapW, this.mapH, this.map.outdoor);
+    cam.setZoom(zoom);
+    // A map smaller than the view is centred: widen the bounds evenly on both sides.
+    const viewW = width / zoom;
+    const viewH = height / zoom;
+    const bx = this.mapW < viewW ? (this.mapW - viewW) / 2 : 0;
+    const by = this.mapH < viewH ? (this.mapH - viewH) / 2 : 0;
+    cam.setBounds(bx, by, Math.max(this.mapW, viewW), Math.max(this.mapH, viewH));
   }
 
   private playSpawnEffect() {
@@ -151,23 +200,26 @@ export class ShipScene extends Phaser.Scene {
 
   /** Places passengers on random walkable tiles reachable from spawn, away from the player. */
   private spawnPassengers(profiles: PassengerProfile[]) {
-    const spawnTile = tileOf(SHIP_MAP, SHIP_MAP.spawn.x, SHIP_MAP.spawn.y - 1);
-    const playerTile = tileOf(SHIP_MAP, this.player.x, this.player.y - 1);
-    const candidates = [...reachableFrom(SHIP_MAP, spawnTile)]
-      .map((key) => ({ tx: key % SHIP_MAP.width, ty: Math.floor(key / SHIP_MAP.width) }))
+    const map = this.map;
+    const spawnTile = tileOf(map, map.spawn.x, map.spawn.y - 1);
+    const playerTile = tileOf(map, this.player.x, this.player.y - 1);
+    const candidates = [...reachableFrom(map, spawnTile)]
+      .map((key) => ({ tx: key % map.width, ty: Math.floor(key / map.width) }))
       .filter((t) => Math.abs(t.tx - playerTile.tx) + Math.abs(t.ty - playerTile.ty) > 4);
     Phaser.Utils.Array.Shuffle(candidates);
-    this.passengers = profiles
-      .slice(0, 15)
-      .map((p, i) => new AmbientPassenger(this, SHIP_MAP, candidates[i], p.characterVariant, p.username, Math.random));
+    // Roughly one passenger per 25 open tiles, so small rooms don't feel crowded.
+    const room = Math.min(15, Math.floor(candidates.length / 25));
+    this.passengers = Phaser.Utils.Array.Shuffle([...profiles])
+      .slice(0, room)
+      .map((p, i) => new AmbientPassenger(this, map, candidates[i], p.characterVariant, p.username, Math.random));
   }
 
   private savePosition(final: boolean) {
     const { x, y, direction } = this.player;
     if (Math.abs(x - this.lastSaved.x) < 1 && Math.abs(y - this.lastSaved.y) < 1) return;
     const position: SavedPosition = {
-      mapId: SHIP_MAP.mapId,
-      mapVersion: SHIP_MAP.mapVersion,
+      mapId: this.map.mapId,
+      mapVersion: this.map.mapVersion,
       x: Math.round(x),
       y: Math.round(y),
       direction,
@@ -188,14 +240,18 @@ export class ShipScene extends Phaser.Scene {
     this.elapsed += delta;
     const t = this.elapsed / 1000;
     // Waves drift; the water rises and falls a pixel against the hull ("hull bob").
-    this.ocean.tilePositionX = t * 4;
-    this.ocean.tilePositionY = Math.round(Math.sin(t * 0.8) * 2);
-    this.ocean.y = -32 + Math.round(Math.sin(t * 1.6));
-    this.foam.tilePositionX = -t * 6;
-    this.foam.y = 22 * 16 + Math.round(Math.sin(t * 1.6));
+    if (this.ocean) {
+      this.ocean.tilePositionX = t * 4;
+      this.ocean.tilePositionY = Math.round(Math.sin(t * 0.8) * 2);
+      this.ocean.y = -32 + Math.round(Math.sin(t * 1.6));
+    }
+    if (this.foam && this.map.foam) {
+      this.foam.tilePositionX = -t * 6;
+      this.foam.y = this.map.foam.y * 16 + Math.round(Math.sin(t * 1.6));
+    }
 
     const stick = Math.hypot(this.stick.x, this.stick.y) < JOYSTICK_DEADZONE ? { x: 0, y: 0 } : this.stick;
-    this.player.applyInput(combineInput(this.keyboardVector(), stick));
+    this.player.applyInput(this.traveling ? { x: 0, y: 0 } : combineInput(this.keyboardVector(), stick));
     for (const p of this.passengers) p.update(delta, DEPTH.characters);
 
     this.statsFrames++;
@@ -210,7 +266,7 @@ export class ShipScene extends Phaser.Scene {
 
   private afterPhysics() {
     this.player.syncVisuals(DEPTH.characters);
-    const area = areaAt(SHIP_MAP, this.player.x, this.player.y - 3);
+    const area = areaAt(this.map, this.player.x, this.player.y - 3);
     if (area && area !== this.currentArea) {
       this.currentArea = area;
       this.bus.emit("area", { name: area });

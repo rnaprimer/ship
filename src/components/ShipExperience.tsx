@@ -24,7 +24,7 @@ export function ShipExperience() {
       try {
         const meRes = await fetch("/api/me", { cache: "no-store" });
         if (meRes.status === 401) {
-          router.replace("/board");
+          router.replace("/");
           return;
         }
         if (!meRes.ok) throw new Error(`me ${meRes.status}`);

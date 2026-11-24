@@ -1,9 +1,19 @@
 {
   "mapId": "ship-main",
   "mapVersion": 1,
+  "name": "First Deck",
   "width": 48,
   "height": 28,
   "tileSize": 16,
+  "outdoor": true,
+  "dark": false,
+  "private": false,
+  "background": "#0b2a3d",
+  "foam": {
+    "x": 3,
+    "y": 22,
+    "w": 34
+  },
   "spawn": {
     "x": 240,
     "y": 284,

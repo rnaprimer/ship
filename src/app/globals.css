@@ -2,6 +2,7 @@
 
 @theme inline {
   --font-pixel: var(--font-press-start), ui-monospace, monospace;
+  --font-display: var(--font-lexend), ui-sans-serif, system-ui, sans-serif;
 }
 
 html,
@@ -79,4 +80,27 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .landing-ocean, .landing-bob, .landing-pan { animation: none; }
+}
+
+/* --- Home page and ship map (Milestone 6) --------------------------------- */
+.home-sky {
+  background-color: #0dc0df;
+}
+.home-ship {
+  animation: home-ship-sail 5s ease-in-out infinite;
+}
+@keyframes home-ship-sail {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-8px) rotate(-0.6deg); }
+}
+.live-dot {
+  box-shadow: 0 0 0 0 rgba(238, 42, 27, 0.6);
+  animation: live-dot 2s ease-out infinite;
+}
+@keyframes live-dot {
+  0% { box-shadow: 0 0 0 0 rgba(238, 42, 27, 0.6); }
+  70%, 100% { box-shadow: 0 0 0 8px rgba(238, 42, 27, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-ship, .live-dot { animation: none; }
 }

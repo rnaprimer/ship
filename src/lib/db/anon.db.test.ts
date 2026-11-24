@@ -35,6 +35,10 @@ describe.skipIf(!hasDb || !publishable)("anonymous access is denied", () => {
       p_map_version: 1, p_spawn_x: 0, p_spawn_y: 0, p_spawn_direction: "up",
     }],
     ["touch_session", { p_token_hash: "0".repeat(64), p_renew_before: new Date().toISOString(), p_new_expires: new Date().toISOString() }],
+    ["save_position", {
+      p_player_id: "00000000-0000-4000-8000-000000000000", p_map_id: "grand-lobby", p_map_version: 1, p_x: 0, p_y: 0,
+      p_direction: "up", p_spawn_x: 0, p_spawn_y: 0, p_max_speed: 1000, p_slack: 1000, p_min_interval_ms: 0,
+    }],
     ["rate_limit_hit", { p_key: "x", p_window_seconds: 60, p_limit: 1 }],
     ["sample_passengers", { p_ship_id: "main", p_exclude_player: null, p_limit: 5 }],
     ["passenger_count", { p_ship_id: "main" }],

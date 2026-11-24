@@ -19,9 +19,9 @@ export function UsernameForm() {
   const [codeProblem, setCodeProblem] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  // The code only lives in memory: after a reload, start again at /board.
+  // The code only lives in memory: after a reload, start again on the home page.
   useEffect(() => {
-    if (!code) router.replace("/board");
+    if (!code) router.replace("/");
   }, [code, router]);
 
   // Random starting look, chosen on the client after hydration.
@@ -87,7 +87,7 @@ export function UsernameForm() {
           <ErrorNote>
             {error}{" "}
             {codeProblem && (
-              <Link href="/board" className="underline">
+              <Link href="/" className="underline">
                 Enter a different code
               </Link>
             )}

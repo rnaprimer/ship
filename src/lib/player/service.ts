@@ -2,7 +2,7 @@ import "server-only";
 import { z } from "zod";
 import { readSessionToken, renewBefore, sessionCookie, sessionExpiry, sessionTokenHash } from "../auth/session";
 import { savePosition, touchSession, type SessionPlayer } from "../db/rpc";
-import { SHIP_MAP } from "@/game/maps";
+import { getMap } from "@/game/maps";
 import { isFootprintWalkable } from "@/game/systems/walkability";
 import { PLAYER_SPEED } from "@/game/systems/movement";
 import { serverEnv } from "../env";
@@ -23,12 +23,16 @@ export async function authenticate(request: Request): Promise<AuthedPlayer | nul
     : player;
 }
 
-/** The saved position if it is still valid for the current map; otherwise null (spawn). */
+/**
+ * The saved position if its map still exists at the same version and the
+ * spot is walkable; otherwise null (First Deck spawn).
+ */
 export function usablePosition(player: SessionPlayer) {
   const p = player.position;
-  if (!p || p.map_id !== SHIP_MAP.mapId || p.map_version !== SHIP_MAP.mapVersion) return null;
-  if (!isFootprintWalkable(SHIP_MAP, p.x, p.y)) return null;
-  return { x: p.x, y: p.y, direction: p.direction };
+  const map = p ? getMap(p.map_id) : null;
+  if (!p || !map || p.map_version !== map.mapVersion) return null;
+  if (!isFootprintWalkable(map, p.x, p.y)) return null;
+  return { mapId: map.mapId, x: p.x, y: p.y, direction: p.direction };
 }
 
 /** Body of POST /api/me/position. Strict: unknown keys (e.g. a playerId) are rejected. */
@@ -56,8 +60,9 @@ export async function savePlayerPosition(
   playerId: string,
   body: z.infer<typeof PositionBody>,
 ): Promise<{ ok: true } | { ok: false; error: PositionError }> {
-  if (body.mapId !== SHIP_MAP.mapId || body.mapVersion !== SHIP_MAP.mapVersion) return { ok: false, error: "WRONG_MAP" };
-  if (!isFootprintWalkable(SHIP_MAP, body.x, body.y)) return { ok: false, error: "NOT_WALKABLE" };
+  const map = getMap(body.mapId);
+  if (!map || body.mapVersion !== map.mapVersion) return { ok: false, error: "WRONG_MAP" };
+  if (!isFootprintWalkable(map, body.x, body.y)) return { ok: false, error: "NOT_WALKABLE" };
   const result = await savePosition({
     playerId,
     mapId: body.mapId,
@@ -65,6 +70,8 @@ export async function savePlayerPosition(
     x: body.x,
     y: body.y,
     direction: body.direction,
+    spawnX: map.spawn.x,
+    spawnY: map.spawn.y,
     ...POSITION_RULES,
   });
   return result === "OK" ? { ok: true } : { ok: false, error: result };

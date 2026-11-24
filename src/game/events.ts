@@ -12,6 +12,10 @@ export type GameEvents = {
   area: { name: string };
   /** Analog stick vector from the touch joystick, each axis in [-1, 1]. */
   joystick: { x: number; y: number };
+  /** The player arrived on a map (at load and after every trip). */
+  location: { mapId: string; name: string };
+  /** Ask the game to take the player to another map (from the location picker). */
+  travel: { mapId: string };
   /** Debug stats, emitted about once per second. */
   stats: { fps: number; x: number; y: number; direction: Direction };
 };

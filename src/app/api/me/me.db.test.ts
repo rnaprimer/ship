@@ -10,7 +10,7 @@ import { POST as savePos } from "./position/route";
 import { POST as logout } from "../logout/route";
 import { GET as passengers } from "../ship/passengers/route";
 import { newSessionToken, sessionTokenHash } from "@/lib/auth/session";
-import { SHIP_MAP } from "@/game/maps";
+import { MAPS, SHIP_MAP } from "@/game/maps";
 
 let ship = "";
 let n = 0;
@@ -91,7 +91,7 @@ describe.skipIf(!hasDb)("sessions and positions (database)", () => {
       const res = await savePos(req("/api/me/position", { body: pos(spawn.x, spawn.y - 30), cookie: a.cookie }));
       expect(res.status).toBe(204);
       const body = await (await me(req("/api/me", { cookie: a.cookie }))).json();
-      expect(body.position).toEqual({ x: spawn.x, y: spawn.y - 30, direction: "left" });
+      expect(body.position).toEqual({ mapId: SHIP_MAP.mapId, x: spawn.x, y: spawn.y - 30, direction: "left" });
     });
 
     it("rejects saves too close together", async () => {
@@ -111,6 +111,9 @@ describe.skipIf(!hasDb)("sessions and positions (database)", () => {
         [{ ...pos(0, 0), x: null }, 400],
         [{ ...pos(0, 0), direction: "diagonal" }, 400],
         [pos(spawn.x, spawn.y, { mapVersion: SHIP_MAP.mapVersion + 1 }), 409],
+        [pos(spawn.x, spawn.y, { mapId: "captains-vault" }), 409], // no such map
+        [pos(spawn.x, spawn.y, { mapId: "__proto__" }), 409],
+        [pos(5, 5, { mapId: "grand-lobby", mapVersion: 1 }), 422], // the lobby's wall
       ];
       for (const [body, status] of cases) {
         const res = await savePos(req("/api/me/position", { body, cookie: a.cookie }));
@@ -125,6 +128,31 @@ describe.skipIf(!hasDb)("sessions and positions (database)", () => {
       await sleep(1100);
       const bow = { x: 41 * 16 + 8, y: 9 * 16 + 12 };
       const res = await savePos(req("/api/me/position", { body: pos(bow.x, bow.y), cookie: a.cookie }));
+      expect(res.status).toBe(422);
+      expect(await res.json()).toEqual({ error: "TOO_FAST" });
+    });
+
+    it("saves a trip to another map, arriving at that map's spawn", async () => {
+      const a = await board();
+      const lobby = MAPS["grand-lobby"];
+      await sleep(1100);
+      const res = await savePos(
+        req("/api/me/position", { body: pos(lobby.spawn.x, lobby.spawn.y - 16, { mapId: lobby.mapId, mapVersion: lobby.mapVersion }), cookie: a.cookie }),
+      );
+      expect(res.status).toBe(204);
+      const body = await (await me(req("/api/me", { cookie: a.cookie }))).json();
+      expect(body.position).toEqual({ mapId: lobby.mapId, x: lobby.spawn.x, y: lobby.spawn.y - 16, direction: "left" });
+    });
+
+    it("rejects a map hop that lands far from the new map's spawn (teleport via travel)", async () => {
+      const a = await board();
+      const pool = MAPS["swimming-pool"];
+      await sleep(1100);
+      // A walkable corner of the pool deck, far from its spawn at the bottom middle.
+      const corner = { x: 3 * 16 + 8, y: 3 * 16 + 12 };
+      const res = await savePos(
+        req("/api/me/position", { body: pos(corner.x, corner.y, { mapId: pool.mapId, mapVersion: pool.mapVersion }), cookie: a.cookie }),
+      );
       expect(res.status).toBe(422);
       expect(await res.json()).toEqual({ error: "TOO_FAST" });
     });

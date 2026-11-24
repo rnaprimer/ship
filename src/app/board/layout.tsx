@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { BoardingProvider } from "@/components/boarding/BoardingProvider";
 
 export const metadata: Metadata = { title: "Board the ship · The Internet Ship" };
 
+/** The boarding code is held by the BoardingProvider in the root layout, shared with the home page. */
 export default function BoardLayout({ children }: LayoutProps<"/board">) {
-  return <BoardingProvider>{children}</BoardingProvider>;
+  return children;
 }
