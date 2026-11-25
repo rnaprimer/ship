@@ -26,7 +26,9 @@ const pixelFont = Pixelify_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "The Internet Ship",
+  title: { default: "Peekatribe", template: "%s · Peekatribe" },
+  applicationName: "Peekatribe",
+  appleWebApp: { title: "Peekatribe" },
   description: "Comment on our Reel, get a boarding pass, and walk around a pixel-art ship.",
 };
 

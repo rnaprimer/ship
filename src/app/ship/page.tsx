@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { ShipExperience } from "@/components/ShipExperience";
 
 export const metadata: Metadata = {
-  title: "The Internet Ship",
+  title: "On deck",
 };
 
 export default function ShipPage() {
