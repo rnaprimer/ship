@@ -181,6 +181,7 @@ function buildMap(map: BuiltMap): void {
       spawn: map.spawn,
       areas: map.areas,
       interactables: map.interactables,
+      flames: map.flames,
       rows,
     }, null, 2) + "\n",
   );

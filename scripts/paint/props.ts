@@ -6,22 +6,109 @@
  * By default the remaining rows block movement; `block` overrides that with
  * a tile rect [x, y, w, h] relative to the prop, or false for none.
  */
-import type { Painter } from "./painter.ts";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { Painter } from "./painter.ts";
 import { C, emblem, bigEmblem, shadow } from "./materials.ts";
+import { decodePng } from "../lib/png.ts";
+
+/** Where an animated flame sits, in the prop's own pixels: big torch flame or small lamp flame. */
+export type Flame = [x: number, y: number, size: "big" | "small"];
 
 export type Prop = {
   w: number;
   h: number;
   tall?: number;
   block?: [number, number, number, number] | false;
+  /** Pixels the drawing reaches above its footprint (drawn over characters). */
+  overhang?: number;
+  /** Flames the game animates on top (prop pixels, including the overhang). */
+  flames?: Flame[];
   draw: (p: Painter) => void;
 };
+
+// --- Hand-drawn sprites (art/props.px.js, built with pxl) ------------------------
+const SPRITES = join(dirname(fileURLToPath(import.meta.url)), "..", "art", "sprites");
+const spriteCache = new Map<string, Painter>();
+
+/** Loads a pxl sprite as a painter. */
+export function sprite(name: string): Painter {
+  let p = spriteCache.get(name);
+  if (!p) {
+    const png = decodePng(readFileSync(join(SPRITES, `${name}.png`)));
+    p = new Painter(png.width, png.height);
+    p.canvas.data.set(png.data);
+    spriteCache.set(name, p);
+  }
+  return p;
+}
+
+/**
+ * A prop drawn from a sprite, standing bottom-centred on a w×h tile footprint
+ * with a soft contact shadow. Taller sprites overhang upwards. `pick` cycles
+ * through variants so rows of barrels don't all look the same.
+ */
+export function spriteProp(
+  names: string | string[],
+  w: number,
+  h: number,
+  opts: { block?: Prop["block"]; flames?: (sx: number, sy: number) => Flame[]; lift?: number; noShadow?: boolean } = {},
+): Prop {
+  const list = Array.isArray(names) ? names : [names];
+  const tallest = Math.max(...list.map((n) => sprite(n).height));
+  const overhang = Math.max(0, tallest - h * 16 + 1 + (opts.lift ?? 0));
+  let next = 0;
+  const first = sprite(list[0]);
+  const sx0 = Math.floor((w * 16 - first.width) / 2);
+  const sy0 = overhang + h * 16 - first.height - 1 - (opts.lift ?? 0);
+  return {
+    w,
+    h,
+    overhang,
+    block: opts.block,
+    flames: opts.flames?.(sx0, sy0),
+    draw(p) {
+      const s = sprite(list[next++ % list.length]);
+      const sx = Math.floor((w * 16 - s.width) / 2);
+      const sy = overhang + h * 16 - s.height - 1 - (opts.lift ?? 0);
+      if (!opts.noShadow) p.ellipse(sx + s.width / 2, sy + s.height - 1, s.width / 2, 2.5, "#1a0d05", 0.35);
+      p.blit(s, sx, sy);
+    },
+  };
+}
 
 const O = C.outline;
 
 // --- Containers ---------------------------------------------------------------
 
-export const barrel: Prop = {
+export const barrel: Prop = spriteProp(["barrel", "barrel", "barrel_open", "barrel", "barrel_water"], 1, 1);
+export const crate: Prop = spriteProp(["crate", "crate", "crate"], 1, 1);
+export const fruitCrate: Prop = spriteProp(["crate_apples", "crate_oranges"], 1, 1);
+export const sack: Prop = spriteProp("sack", 1, 1);
+export const keg: Prop = spriteProp("keg", 2, 1);
+export const skullPile: Prop = spriteProp("skull_pile", 2, 1);
+export const chestGold: Prop = spriteProp("chest_gold", 2, 1);
+export const coins: Prop = spriteProp("coins", 1, 1, { block: false, noShadow: true });
+/** Things set down on a table: drawn on the tabletop, no extra blocking. */
+export const tankards: Prop = spriteProp("tankards", 1, 1, { block: false, noShadow: true, lift: 6 });
+export const potions: Prop = spriteProp("potions", 1, 1, { block: false, noShadow: true, lift: 4 });
+export const bottleShelf: Prop = spriteProp("bottle_shelf", 2, 1, { block: false, noShadow: true, lift: 4 });
+export const candelabra: Prop = spriteProp("candelabra", 1, 1, {
+  flames: (sx, sy) => [[sx, sy - 1, "small"], [sx + 5, sy - 1, "small"], [sx + 10, sy - 1, "small"]],
+});
+/** A candelabra standing on a tabletop (drawn raised; the table already blocks). */
+export const candelabraTable: Prop = spriteProp("candelabra", 1, 1, {
+  block: false,
+  noShadow: true,
+  lift: 8,
+  flames: (sx, sy) => [[sx, sy - 1, "small"], [sx + 5, sy - 1, "small"], [sx + 10, sy - 1, "small"]],
+});
+/** A torch in a wall bracket (place on a wall face). */
+export const torch: Prop = spriteProp("torch", 1, 1, { block: false, noShadow: true, flames: (sx, sy) => [[sx + 2, sy - 4, "big"]] });
+export const brazier: Prop = spriteProp("brazier", 1, 1, { flames: (sx, sy) => [[sx + 6, sy - 4, "big"]] });
+
+export const barrelOld: Prop = {
   w: 1,
   h: 1,
   draw(p) {
@@ -36,7 +123,7 @@ export const barrel: Prop = {
   },
 };
 
-export const crate: Prop = {
+export const crateOld: Prop = {
   w: 1,
   h: 1,
   draw(p) {
@@ -51,7 +138,7 @@ export const crate: Prop = {
   },
 };
 
-export const sack: Prop = {
+export const sackOld: Prop = {
   w: 1,
   h: 1,
   draw(p) {
@@ -154,6 +241,7 @@ export const wallLamp: Prop = {
 export const candles: Prop = {
   w: 1,
   h: 1,
+  flames: [[4, 3, "small"], [8, 0, "small"], [11, 4, "small"]],
   draw(p) {
     p.glow(8, 6, 8, C.glow, 0.6);
     p.ellipse(8, 13, 6, 2, C.goldDark);
@@ -810,6 +898,7 @@ export const bar: Prop = {
   w: 6,
   h: 4,
   tall: 2,
+  flames: [[5, 16, "small"], [89, 16, "small"]],
   block: [0, 1, 6, 2],
   draw(p) {
     const W = 96;
@@ -934,6 +1023,7 @@ export const pillar: Prop = {
   w: 2,
   h: 3,
   tall: 2,
+  flames: [[3, 20, "small"], [27, 20, "small"]],
   block: [0, 2, 2, 1],
   draw(p) {
     p.ellipse(16, 42, 12, 5, C.wallDark);

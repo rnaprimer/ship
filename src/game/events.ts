@@ -28,6 +28,12 @@ export type GameEvents = {
   drink: { drink: string };
   /** Freeze movement while a panel is open. */
   pause: { paused: boolean };
+  /** The passenger's skills (sent at start and after every change). */
+  skills: { xp: Record<string, number>; parrot: boolean };
+  /** XP was earned (for the little "+1 Gunnery" chip). */
+  xp: { skill: string; gained: number };
+  /** Use a level-5 ability from the skills panel. */
+  ability: { id: string };
   /** Debug stats, emitted about once per second. */
   stats: { fps: number; x: number; y: number; direction: Direction };
 };

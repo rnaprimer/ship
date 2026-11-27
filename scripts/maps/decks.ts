@@ -91,6 +91,21 @@ export function firstDeck(): BuiltMap {
   m.place(P.chair, 93, 27);
   m.light(95 * 16, 18 * 16, 50, 0.3);
 
+  // --- Extra detail (Milestone 9) ---
+  m.place(P.keg, 54, 7);
+  m.place(P.fruitCrate, 61, 29);
+  m.place(P.fruitCrate, 64, 29);
+  m.place(P.candelabra, 96, 25);
+  m.place(P.bottleShelf, 96, 8);
+  // Rigging: shrouds from each masthead down to the rails.
+  for (const mx of [29, 47, 66]) {
+    const top = { x: mx * 16 + 16, y: 14 * 16 + 4 };
+    for (const dx of [-56, -20, 20, 56]) {
+      m.rope(top.x, top.y, top.x + dx, 6 * 16 + 10, 4);
+      m.rope(top.x, top.y, top.x + dx, 31 * 16 + 4, 8);
+    }
+  }
+
   // --- Things to do ---
   for (const x of [49, 56, 70]) m.place(P.cannonOut, x, 29);
   for (const x of [33, 49, 56, 70]) m.interact("cannon", "Fire the cannon", x, 29, 1, 2);
@@ -205,6 +220,12 @@ export function secondDeck(): BuiltMap {
   for (const [x, y] of [[88, 26], [89, 26], [96, 15], [96, 16]]) m.place(P.sack, x, y);
   m.place(P.chest(false), 90, 16);
   m.lantern(88, 20);
+
+  // --- Extra detail (Milestone 9) ---
+  for (const x of [43, 46, 65, 68]) m.place(P.tankards, x, 19);
+  m.place(P.fruitCrate, 89, 11);
+  m.place(P.keg, 86, 22);
+  for (const x of [34, 52, 75, 84]) m.place(P.torch, x, 8);
 
   // --- Things to do ---
   for (const x of [44, 50, 58, 66]) {

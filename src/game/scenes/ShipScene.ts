@@ -10,6 +10,7 @@ import { areaAt, isFootprintWalkable, reachableFrom, tileOf, type WalkableMap } 
 import { combineInput, JOYSTICK_DEADZONE, type Vec } from "../systems/movement";
 import { pickZoom } from "../systems/zoom";
 import { DRINKS, GLOBE_PLACES, nearestInteractable, type DrinkId, type Interactable } from "../systems/interactions";
+import { award, hasPerk, loadSkills, perkAt, saveSkills, SKILLS, type StoredSkills } from "../systems/skills";
 import { boom, click, clink, splash } from "../systems/sfx";
 import { ActivityEffects } from "../effects/ActivityEffects";
 
@@ -58,6 +59,16 @@ export class ShipScene extends Phaser.Scene {
   private driftBoostUntil = 0;
   private tipsyUntil = 0;
   private lightsOverlay: Phaser.GameObjects.Rectangle | null = null;
+  // Skills (Milestone 9): kept in this browser, per passenger.
+  private skills!: StoredSkills;
+  private username = "";
+  private readonly lastXp = new Map<string, number>();
+  private flames: Phaser.GameObjects.Sprite[] = [];
+  private parrot: Phaser.GameObjects.Sprite | null = null;
+  private bubblesUntil = 0;
+  private bubbleTimer = 0;
+  private glowUntil = 0;
+  private spyglassUntil = 0;
 
   constructor() {
     super("ship");
@@ -76,6 +87,11 @@ export class ShipScene extends Phaser.Scene {
     this.busyUntil = 0;
     this.tipsyUntil = 0;
     this.lightsOverlay = null;
+    this.flames = [];
+    this.parrot = null;
+    this.spyglassUntil = 0;
+    this.username = profile.username;
+    this.skills = loadSkills(profile.username);
 
     // Where to start: the map we travelled to (at its spawn), else the saved
     // position if it is still valid, else First Deck's spawn.
@@ -164,6 +180,10 @@ export class ShipScene extends Phaser.Scene {
     this.cleanup.push(this.bus.on("use", use));
     this.cleanup.push(this.bus.on("drink", ({ drink }) => this.drink(drink as DrinkId)));
     this.cleanup.push(this.bus.on("pause", ({ paused }) => (this.paused = paused)));
+    this.cleanup.push(this.bus.on("ability", ({ id }) => this.useAbility(id)));
+    this.emitSkills();
+    this.spawnFlames();
+    if (this.skills.parrot && hasPerk(this.skills.xp, "seamanship", 5)) this.setParrot(true);
     this.bus.emit("prompt", null);
     if (this.map.mapId === "personal-cabin") this.setupCabinLights();
 
@@ -214,7 +234,9 @@ export class ShipScene extends Phaser.Scene {
     const isTouch = window.matchMedia("(pointer: coarse)").matches;
     const { width, height } = this.scale.gameSize;
     const cam = this.cameras.main;
-    const zoom = pickZoom(width, height, isTouch, this.mapW, this.mapH, this.map.outdoor);
+    const base = pickZoom(width, height, isTouch, this.mapW, this.mapH, this.map.outdoor);
+    // The spyglass pulls the view back one step (never below 1×).
+    const zoom = this.time.now < this.spyglassUntil ? Math.max(1, base - 1) : base;
     cam.setZoom(zoom);
     // A map smaller than the view is centred: widen the bounds evenly on both sides.
     const viewW = width / zoom;
@@ -278,7 +300,11 @@ export class ShipScene extends Phaser.Scene {
     const head = { x: this.player.x, y: this.player.y - 26 };
     switch (it.kind) {
       case "chart":
-        this.bus.emit("activity", { kind: "chart", title: it.label, text: it.text ?? "" });
+        this.bus.emit("activity", {
+          kind: "chart",
+          title: it.label,
+          text: (it.text ?? "") + (this.lvl("navigation", 3) ? " Your navigator's eye spots a second route, inked in lemon juice, leading somewhere new." : ""),
+        });
         break;
       case "bar":
         this.bus.emit("activity", { kind: "bar", title: it.label, text: "" });
@@ -293,7 +319,8 @@ export class ShipScene extends Phaser.Scene {
         this.fireCannon(it);
         break;
       case "wheel":
-        this.driftBoostUntil = this.time.now + 3500;
+        this.driftBoostUntil = this.time.now + (this.lvl("navigation", 2) ? 7000 : 3500);
+        if (this.lvl("navigation", 4) && this.map.outdoor) this.dolphins();
         this.cameras.main.shake(400, 0.002);
         click(300);
         this.say("Hard a-starboard! The ship leans into the wind.");
@@ -304,13 +331,20 @@ export class ShipScene extends Phaser.Scene {
       case "chest":
         click(500);
         this.fx.burst(cx, cy - 6, { count: 18, colors: [0xf6d27a, 0xffffff, 0xd9a441], spread: 14, rise: 18, life: 900 });
-        this.say("Gold glints in the lantern light… but it all belongs to the ship.");
+        if (this.lvl("seamanship", 4) && Math.random() < 0.35) {
+          this.fx.burst(cx, cy - 8, { count: 10, colors: [0x5fd3c4, 0xffffff], spread: 8, rise: 14, life: 1200 });
+          this.say("Your lucky eye spots a gem winking among the coins. You leave it for the next sailor.");
+        } else this.say("Gold glints in the lantern light… but it all belongs to the ship.");
         break;
       case "pool": {
         // Splash at the edge of the pool nearest to you.
         const px = Math.max(it.x * 16 + 10, Math.min((it.x + it.w) * 16 - 10, this.player.x));
         const py = Math.max(it.y * 16 + 10, Math.min((it.y + it.h) * 16 - 10, this.player.y - 6));
         this.fx.splash(px, py);
+        if (this.lvl("seamanship", 2)) {
+          this.fx.burst(px, py, { count: 30, colors: [0xffffff, 0xcfe8ef, 0x6fd0e6], spread: 26, rise: 34, life: 900 });
+          this.cameras.main.shake(150, 0.002);
+        }
         splash();
         this.say("Splash! The water's lovely and warm.");
         break;
@@ -320,6 +354,9 @@ export class ShipScene extends Phaser.Scene {
           this.time.delayedCall(i * 180, () =>
             this.fx.burst(cx + (Math.random() - 0.5) * 24, cy - 8, { count: 5, colors: [0xa64fd6, 0x4fd68a, 0x4f8ad6], spread: 6, rise: 22, life: 1000 }),
           );
+        if (this.lvl("brewing", 3))
+          this.fx.burst(cx, cy - 12, { count: 16, colors: [0xffffff, 0xf6d27a, 0xd9b3ff], spread: 16, rise: 26, life: 1300 });
+        if (this.lvl("brewing", 4)) this.glowUntil = this.time.now + 20_000;
         this.say(["It fizzes and smells of plums.", "The potion turns a worrying shade of green.", "A puff of purple smoke! Nothing else happens."][Math.floor(Math.random() * 3)]);
         break;
       case "ritual":
@@ -340,39 +377,156 @@ export class ShipScene extends Phaser.Scene {
         this.say(`You spin the globe. It stops on ${GLOBE_PLACES[Math.floor(Math.random() * GLOBE_PLACES.length)]}.`);
         break;
     }
+    // The bar earns XP per drink served (see drink()), not for opening the menu.
+    if (it.kind !== "bar") this.gainXp(it);
+  }
+
+  // --- Skills ----------------------------------------------------------------------
+
+  private lvl(skill: keyof StoredSkills["xp"], level: number): boolean {
+    return hasPerk(this.skills.xp, skill, level);
+  }
+
+  private emitSkills() {
+    this.bus.emit("skills", { xp: { ...this.skills.xp }, parrot: Boolean(this.skills.parrot) });
+  }
+
+  private gainXp(it: Interactable) {
+    const r = award(this.skills, it.kind, it.id, this.time.now, this.lastXp);
+    if (!r || r.gained === 0) return;
+    saveSkills(this.username, this.skills);
+    this.bus.emit("xp", { skill: SKILLS[r.skill].name, gained: r.gained });
+    this.emitSkills();
+    if (r.levelUp) {
+      const perk = perkAt(r.skill, r.levelUp);
+      this.fx.burst(this.player.x, this.player.y - 20, { count: 24, colors: [0xf6d27a, 0xffffff, 0xd9a441], spread: 22, rise: 20, life: 1100 });
+      this.fx.ring(this.player.x, this.player.y - 4, 0xf6d27a, 22, 900);
+      clink();
+      this.time.delayedCall(1200, () =>
+        this.say(`${SKILLS[r.skill].name} is now level ${r.levelUp}!${perk ? ` Unlocked: ${perk.name}. ${perk.text}` : ""}`),
+      );
+    }
+  }
+
+  private useAbility(id: string) {
+    // Abilities come from the skills panel, which is closing as this arrives: ignore the pause.
+    if (this.traveling) return;
+    if (id === "parrot" && this.lvl("seamanship", 5)) {
+      const on = !this.parrot;
+      this.setParrot(on);
+      this.skills.parrot = on;
+      saveSkills(this.username, this.skills);
+      this.emitSkills();
+      this.say(on ? "A parrot swoops down onto your shoulder. Squawk!" : "Your parrot flies off to the rigging.");
+    } else if (id === "spyglass" && this.lvl("navigation", 5)) {
+      this.spyglassUntil = this.time.now + 6000;
+      this.applyZoom();
+      this.time.delayedCall(6050, () => this.applyZoom());
+      this.say("You raise the spyglass and take in the whole deck.");
+    } else if (id === "bubbles" && this.lvl("brewing", 5)) {
+      this.bubblesUntil = this.time.now + 20_000;
+      this.say("You sip a rainbow brew. Bubbles follow in your wake!");
+    }
+  }
+
+  private setParrot(on: boolean) {
+    if (!on) {
+      this.parrot?.destroy();
+      this.parrot = null;
+      return;
+    }
+    if (this.parrot) return;
+    this.parrot = this.add
+      .sprite(this.player.x + 10, this.player.y - 30, ASSETS.parrot)
+      .setDepth(DEPTH.effects)
+      .play(ASSETS.parrot);
+  }
+
+  /** Animated flames over every lamp, candle and torch on this map. */
+  private spawnFlames() {
+    for (const f of this.map.flames ?? []) {
+      const key = f.s ? ASSETS.flame : ASSETS.flameSmall;
+      const sprite = this.add.sprite(f.x, f.y, key).setOrigin(0).setDepth(DEPTH.decorAbove + 1);
+      sprite.play({ key, startFrame: Math.floor(Math.random() * (f.s ? 6 : 4)) });
+      this.flames.push(sprite);
+    }
   }
 
   private drink(id: DrinkId) {
     const d = DRINKS[id];
     if (!d) return;
+    if (id !== "beer" && this.near?.kind === "bar") this.gainXp({ ...this.near, id: `bar-${id}` });
     const head = { x: this.player.x, y: this.player.y - 24 };
     clink();
     this.fx.rise(head.x, head.y, id === "beer" || id === "grog" ? "fx-mug" : "fx-glass", { tint: id === "beer" || id === "grog" ? undefined : d.color });
     this.fx.burst(head.x, head.y - 4, { count: 6, colors: [0xffffff, 0xf6d27a], spread: 8, rise: 8, life: 600 });
-    if (d.tipsy) this.tipsyUntil = this.time.now + 6000;
-    this.say(`Cheers! ${d.name}${d.tipsy ? ", and the deck sways a little." : ". Refreshing."}`);
+    const seaLegs = this.lvl("seamanship", 3);
+    if (d.tipsy && !seaLegs) this.tipsyUntil = this.time.now + 6000;
+    this.say(`Cheers! ${d.name}${d.tipsy && !seaLegs ? ", and the deck sways a little." : ". Refreshing."}`);
+    // Drinks from the bar menu earn Brewing XP too (the bar itself was the activity).
   }
 
   private fireCannon(it: Interactable) {
     // Cannons point south, out through the rail.
     const tipX = it.x * 16 + 8;
     const tipY = (it.y + it.h) * 16 + 2;
-    this.busyUntil = this.time.now + 1200;
+    const shots = this.lvl("gunnery", 2) ? 2 : 1;
+    this.busyUntil = this.time.now + 1200 + (shots - 1) * 400;
+    for (let i = 0; i < shots; i++) this.time.delayedCall(i * 400, () => this.cannonShot(tipX, tipY));
+    this.say(shots > 1 ? "BOOM! BOOM! A double broadside rolls across the water." : "BOOM! A plume of spray rises far off the side.");
+  }
+
+  private cannonShot(tipX: number, tipY: number) {
     this.fx.flash(tipX, tipY, 0xffe08a, 10);
     this.fx.burst(tipX, tipY, { count: 10, colors: [0xffd36b, 0xff8a3c, 0xffffff], spread: 12, life: 300 });
-    this.fx.smoke(tipX, tipY, 8);
+    if (this.lvl("gunnery", 3)) {
+      this.fx.smoke(tipX - 4, tipY, 5, 0xd9a441);
+      this.fx.smoke(tipX + 4, tipY, 5, 0xc8443a);
+    } else this.fx.smoke(tipX, tipY, 8);
     this.cameras.main.shake(260, 0.006);
     boom();
-    if (this.map.outdoor) {
-      const sx = tipX + (Math.random() - 0.5) * 40;
-      const sy = tipY + 110 + Math.random() * 40;
-      this.time.delayedCall(700, () => {
-        this.fx.splash(sx, sy);
-        this.fx.burst(sx, sy, { count: 14, colors: [0xffffff, 0xcfe8ef], spread: 10, rise: 30, life: 800 });
+    if (!this.map.outdoor) return;
+    let sx = tipX + (Math.random() - 0.5) * 40;
+    let sy = tipY + 110 + Math.random() * 40;
+    const skips = this.lvl("gunnery", 4) ? 3 : 1;
+    for (let k = 0; k < skips; k++) {
+      const [x, y] = [sx, sy];
+      this.time.delayedCall(700 + k * 260, () => {
+        this.fx.splash(x, y);
+        this.fx.burst(x, y, { count: 14 - k * 3, colors: [0xffffff, 0xcfe8ef], spread: 10, rise: 30 - k * 8, life: 800 });
+        if (k === skips - 1 && this.lvl("gunnery", 5)) this.fireworks(x, y - 30);
       });
-      splash(0.7);
+      sx += 30 + Math.random() * 20;
+      sy += 14;
     }
-    this.say("BOOM! A plume of spray rises far off the side.");
+    splash(0.7);
+  }
+
+  private fireworks(x: number, y: number) {
+    const palettes = [[0xff5a5a, 0xffd36b], [0x5fd3c4, 0xffffff], [0xd9b3ff, 0xf6d27a]];
+    for (let i = 0; i < 3; i++)
+      this.time.delayedCall(i * 220, () => {
+        const px = x + (Math.random() - 0.5) * 50;
+        const py = y - Math.random() * 30;
+        this.fx.flash(px, py, 0xffffff, 3);
+        this.fx.burst(px, py, { count: 22, colors: palettes[i % 3], spread: 26, life: 1000, gravity: 8 });
+      });
+    click(1800);
+  }
+
+  /** Dolphins leap alongside the hull (Navigation 4). */
+  private dolphins() {
+    for (let i = 0; i < 3; i++)
+      this.time.delayedCall(300 + i * 450, () => {
+        const x = this.player.x - 80 + i * 70;
+        const y = this.mapH - 40 - Math.random() * 20;
+        const d = this.add.ellipse(x, y, 9, 4, 0x7e8fa6).setDepth(DEPTH.effects);
+        this.tweens.add({ targets: d, x: x + 40, duration: 700, ease: "Linear" });
+        this.tweens.add({ targets: d, y: y - 18, duration: 350, yoyo: true, ease: "Sine.Out", onComplete: () => {
+          this.fx.splash(d.x, y);
+          d.destroy();
+        } });
+      });
   }
 
   /** Lie down: fade out, a few Zs, fade back in. */
@@ -399,6 +553,7 @@ export class ShipScene extends Phaser.Scene {
       // Storage may be blocked; lights default to on.
     }
     this.lightsOverlay.setAlpha(off ? 1 : 0);
+    this.time.delayedCall(0, () => this.flames.forEach((f) => f.setVisible(!off)));
   }
 
   private toggleCabinLights() {
@@ -407,6 +562,7 @@ export class ShipScene extends Phaser.Scene {
     const turnOff = overlay.alpha < 0.5;
     click(turnOff ? 600 : 1100);
     this.tweens.add({ targets: overlay, alpha: turnOff ? 1 : 0, duration: 180 });
+    for (const f of this.flames) f.setVisible(!turnOff);
     try {
       window.localStorage.setItem(CABIN_LIGHTS_KEY, turnOff ? "off" : "on");
     } catch {
@@ -446,6 +602,27 @@ export class ShipScene extends Phaser.Scene {
     const sway = this.time.now < this.tipsyUntil ? Math.round(Math.sin(t * 2.2) * 5) : 0;
     this.cameras.main.setFollowOffset(sway, 12);
     for (const p of this.passengers) p.update(delta, DEPTH.characters);
+    if (this.parrot) {
+      const tx = this.player.x + 10;
+      const ty = this.player.y - 30 + Math.round(Math.sin(t * 3) * 2);
+      this.parrot.x += (tx - this.parrot.x) * Math.min(1, delta / 180);
+      this.parrot.y += (ty - this.parrot.y) * Math.min(1, delta / 180);
+      this.parrot.setFlipX(this.player.direction === "left");
+    }
+    if (this.time.now < this.bubblesUntil) {
+      this.bubbleTimer += delta;
+      if (this.bubbleTimer > 160) {
+        this.bubbleTimer = 0;
+        const colors = [0xff8a8a, 0xffd36b, 0x8fe0f0, 0xd9b3ff, 0x9fe08a];
+        const b = this.add.circle(this.player.x + (Math.random() - 0.5) * 8, this.player.y - 4, 2, colors[Math.floor(Math.random() * colors.length)], 0.9).setDepth(DEPTH.effects);
+        this.tweens.add({ targets: b, y: b.y - 14, alpha: 0, scale: 1.6, duration: 900, onComplete: () => b.destroy() });
+      }
+    }
+    if (this.time.now < this.glowUntil) this.player.sprite.setTint(Math.sin(t * 6) > 0 ? 0xfff1a0 : 0xffffff);
+    else if (this.glowUntil) {
+      this.glowUntil = 0;
+      this.player.sprite.clearTint();
+    }
 
     this.statsFrames++;
     this.statsMs += delta;

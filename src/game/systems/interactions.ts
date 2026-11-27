@@ -69,9 +69,13 @@ export const DRINKS = {
   punch: { name: "Coconut punch", color: 0xf0e2c0, tipsy: false },
   lemonade: { name: "Sea-salt lemonade", color: 0xf2e36b, tipsy: false },
   beer: { name: "Beer", color: 0xe0a53a, tipsy: true },
+  kraken: { name: "Kraken grog", color: 0x4a2464, tipsy: true },
+  mermaid: { name: "Mermaid's kiss", color: 0x5fd3c4, tipsy: false },
 } as const;
 export type DrinkId = keyof typeof DRINKS;
 export const BAR_MENU: DrinkId[] = ["grog", "rum", "punch", "lemonade"];
+/** Unlocked by Brewing level 2. */
+export const SECRET_MENU: DrinkId[] = ["kraken", "mermaid"];
 
 export const GLOBE_PLACES = [
   "the Lantern Isles",

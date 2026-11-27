@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { BAR_MENU, DRINKS, type DrinkId } from "@/game/systems/interactions";
+import { BAR_MENU, DRINKS, SECRET_MENU, type DrinkId } from "@/game/systems/interactions";
 
 function usePanelKeys(onClose: () => void) {
   const ref = useRef<HTMLDivElement>(null);
@@ -54,7 +54,7 @@ export function ChartPanel({ title, text, onClose }: { title: string; text: stri
 }
 
 /** The pool bar's drinks list. */
-export function BarMenu({ onPick, onClose }: { onPick: (drink: DrinkId) => void; onClose: () => void }) {
+export function BarMenu({ onPick, onClose, secret = false }: { onPick: (drink: DrinkId) => void; onClose: () => void; secret?: boolean }) {
   const ref = usePanelKeys(onClose);
   return (
     <div ref={ref} role="dialog" aria-modal="true" aria-labelledby="bar-title" className="absolute inset-0 z-30 flex items-center justify-center bg-black/55 px-4">
@@ -64,7 +64,7 @@ export function BarMenu({ onPick, onClose }: { onPick: (drink: DrinkId) => void;
         </h2>
         <p className="font-display mb-4 text-center text-base">What&apos;ll it be?</p>
         <div className="flex flex-col gap-2.5">
-          {BAR_MENU.map((id) => (
+          {[...BAR_MENU, ...(secret ? SECRET_MENU : [])].map((id) => (
             <button
               key={id}
               type="button"
@@ -77,6 +77,7 @@ export function BarMenu({ onPick, onClose }: { onPick: (drink: DrinkId) => void;
                 style={{ background: `#${DRINKS[id].color.toString(16).padStart(6, "0")}` }}
               />
               {DRINKS[id].name}
+              {SECRET_MENU.includes(id) && <span className="ml-auto text-xs font-medium">secret recipe</span>}
             </button>
           ))}
         </div>

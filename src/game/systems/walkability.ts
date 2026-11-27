@@ -29,6 +29,8 @@ export type WalkableMap = {
   foam: { x: number; y: number; w: number } | null;
   /** Things passengers can use here (cosmetic, client-only). */
   interactables?: Interactable[];
+  /** Animated flames over lamps, candles and torches (pixels; s = 1 for big). */
+  flames?: Array<{ x: number; y: number; s: number }>;
 };
 
 export type TilePoint = { tx: number; ty: number };

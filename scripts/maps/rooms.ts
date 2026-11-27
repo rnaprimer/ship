@@ -90,6 +90,14 @@ export function secretDeck(): BuiltMap {
   for (const [x, y] of [[83, 12], [90, 12], [83, 19], [90, 19], [86, 21]]) m.place(P.candles, x, y);
   m.place(P.bookshelf(), 87, 22);
 
+  // --- Extra detail (Milestone 9) ---
+  m.place(P.skullPile, 13, 12);
+  m.place(P.skullPile, 90, 9);
+  m.place(P.brazier, 86, 11);
+  m.place(P.chestGold, 40, 22);
+  for (const [x, y] of [[39, 13], [51, 13], [47, 20]]) m.place(P.coins, x, y);
+  for (const x of [16, 28, 40, 50, 58, 75, 84]) m.place(P.torch, x, 7);
+
   // --- Things to do ---
   m.interact("chart", "Study the charts", 59, 14, 6, 3, "Old charts in many hands. One shows an island shaped like a skull, with a note: 'not yet'.");
   m.interact("globe", "Spin the globe", 67, 13, 1, 2);
@@ -177,6 +185,11 @@ export function grandLobby(): BuiltMap {
   m.place(P.stairs(4, 2), 28, 38);
   m.place(P.banner, 25, 38);
   m.place(P.banner, 34, 38);
+
+  // --- Extra detail (Milestone 9) ---
+  m.place(P.keg, 50, 25);
+  for (const x of [9, 45]) m.place(P.candelabraTable, x, 13);
+  for (const x of [15, 20, 39, 44]) m.place(P.torch, x, 8);
 
   // --- Things to do ---
   m.interact("chart", "Read the voyage board", 8, 21, 3, 2, "Notices: Deck swabbing rota. Lost: one parrot, answers to 'Biscuit'. Next port of call: wherever the wind likes.");
@@ -281,6 +294,12 @@ export function swimmingPool(): BuiltMap {
   m.place(P.lifeRing, 24, 40);
   m.place(P.lifeRing, 39, 40);
 
+  // --- Extra detail (Milestone 9) ---
+  m.place(P.keg, 34, 9);
+  m.place(P.fruitCrate, 36, 10);
+  m.place(P.bottleShelf, 30, 7);
+  for (const x of [15, 26, 42, 52]) m.place(P.torch, x, 8);
+
   // --- Things to do ---
   m.interact("bar", "Order a drink", 28, 8, 6, 3);
   m.interact("pool", "Take a dip", 20, 15, 24, 13);
@@ -366,6 +385,11 @@ export function personalCabin(): BuiltMap {
   m.place(P.sack, 22, 21);
   m.place(P.crate, 23, 21);
   m.light(16 * 16, 9 * 16, 40, 0.3);
+
+  // --- Extra detail (Milestone 9) ---
+  m.place(P.candelabraTable, 14, 8);
+  m.place(P.bottleShelf, 26, 5);
+  m.place(P.coins, 7, 9);
 
   // --- Things to do ---
   m.place(P.lightSwitch, 19, 6);

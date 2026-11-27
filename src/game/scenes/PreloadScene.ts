@@ -6,6 +6,9 @@ export const ASSETS = {
   ocean: "ocean",
   foam: "foam",
   font: "ship-font",
+  flame: "fx-flame",
+  flameSmall: "fx-flame-small",
+  parrot: "parrot",
 } as const;
 
 /** Phaser cache keys of a map's Tiled JSON and its tileset image. */
@@ -41,10 +44,17 @@ export class PreloadScene extends Phaser.Scene {
       frameHeight: CHARACTER_FRAME.height,
     });
     this.load.bitmapFont(ASSETS.font, "ship-font.png", "ship-font.xml");
+    // Hand-drawn animations (art/props.px.js, built with pxl).
+    this.load.spritesheet(ASSETS.flame, "anims/flame.png", { frameWidth: 7, frameHeight: 10 });
+    this.load.spritesheet(ASSETS.flameSmall, "anims/flame_small.png", { frameWidth: 3, frameHeight: 5 });
+    this.load.spritesheet(ASSETS.parrot, "anims/parrot.png", { frameWidth: 14, frameHeight: 14 });
   }
 
   create() {
     createCharacterAnims(this);
+    this.anims.create({ key: ASSETS.flame, frames: this.anims.generateFrameNumbers(ASSETS.flame), frameRate: 10, repeat: -1 });
+    this.anims.create({ key: ASSETS.flameSmall, frames: this.anims.generateFrameNumbers(ASSETS.flameSmall), frameRate: 8, repeat: -1 });
+    this.anims.create({ key: ASSETS.parrot, frames: this.anims.generateFrameNumbers(ASSETS.parrot), frameRate: 6, repeat: -1 });
     this.scene.start("ship");
   }
 }

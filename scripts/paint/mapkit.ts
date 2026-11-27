@@ -57,6 +57,8 @@ export type BuiltMap = MapMeta & {
   walk: boolean[][];
   areas: AreaRect[];
   interactables: Interactable[];
+  /** Animated flames the game draws on top (pixels; s = 1 for a big torch flame). */
+  flames: Array<{ x: number; y: number; s: 0 | 1 }>;
   spawn: { x: number; y: number; direction: Direction };
 };
 
@@ -90,6 +92,12 @@ export class MapBuilder {
   private readonly interactables: Interactable[] = [];
   private readonly queue: Queued[] = [];
   private readonly lights: Array<[number, number, number, number]> = [];
+  private readonly flames: BuiltMap["flames"] = [];
+
+  /** Adds an animated flame at a pixel position (top-left of the flame sprite). */
+  flame(x: number, y: number, size: "big" | "small" = "small"): void {
+    this.flames.push({ x: Math.round(x), y: Math.round(y), s: size === "big" ? 1 : 0 });
+  }
   private spawn: BuiltMap["spawn"] | null = null;
   readonly meta: MapMeta;
 
@@ -162,9 +170,26 @@ export class MapBuilder {
     this.light(tx * TILE + 8, ty * TILE + 10, r);
   }
 
+  /**
+   * A rigging rope (pixels), drawn over characters with a faint shadow on the
+   * deck below it. Sags a little in the middle.
+   */
+  rope(x0: number, y0: number, x1: number, y1: number, sag = 6): void {
+    const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+    for (let i = 0; i <= n; i++) {
+      const t = i / n;
+      const x = x0 + (x1 - x0) * t;
+      const y = y0 + (y1 - y0) * t + Math.sin(t * Math.PI) * sag;
+      this.above.px(x, y, C.creamDark, 0.85);
+      if (i % 7 === 0) this.above.px(x, y, C.beamDark, 0.85);
+      this.below.tint(Math.round(x + 4), Math.round(y + 10), "#1a0d05", 0.18);
+    }
+  }
+
   /** A lamp hung on a wall face at tile (tx, ty), lighting the floor below. */
   wallLamp(tx: number, ty: number): void {
     lamp(this.below, tx * TILE + 8, ty * TILE + 8);
+    this.flame(tx * TILE + 7, ty * TILE + 6);
     this.light(tx * TILE + 8, (ty + 1) * TILE + 8, 40, 0.3);
   }
 
@@ -290,6 +315,7 @@ export class MapBuilder {
     for (const k of [x - 60, x - 40, x - 20]) b.rect(k, cy - 4, 3, 8, C.gold);
     b.vline(x - 56, cy + 4, 10, C.outline);
     lamp(b, x - 56, cy + 20);
+    this.flame(x - 57, cy + 18);
     // A gilded lion's head with a curling mane.
     b.ellipse(x - 2, cy + 14, 13, 11, C.outline);
     b.ellipse(x - 2, cy + 14, 12, 10, C.goldDark);
@@ -310,11 +336,15 @@ export class MapBuilder {
     const queue = [...this.queue];
     const paint = (q: Queued) => {
       const { prop, tx, ty } = q;
-      const tmp = new Painter(prop.w * TILE, prop.h * TILE);
+      // Sprites taller than their footprint overhang upwards, over the characters.
+      const oh = prop.overhang ?? 0;
+      const tmp = new Painter(prop.w * TILE, prop.h * TILE + oh);
       prop.draw(tmp);
-      const tall = (prop.tall ?? 0) * TILE;
-      if (tall > 0) this.above.blit(tmp, tx * TILE, ty * TILE, 0, tall);
-      this.below.blit(tmp, tx * TILE, ty * TILE, tall, tmp.height);
+      const tall = oh + (prop.tall ?? 0) * TILE;
+      const top = ty * TILE - oh;
+      if (tall > 0) this.above.blit(tmp, tx * TILE, top, 0, tall);
+      this.below.blit(tmp, tx * TILE, top, tall, tmp.height);
+      for (const [fx, fy, size] of prop.flames ?? []) this.flame(tx * TILE + fx, top + fy, size);
       if (q.floorLayer || prop.block === false) return;
       const [bx, by, bw, bh] = prop.block ?? [0, prop.tall ?? 0, prop.w, prop.h - (prop.tall ?? 0)];
       this.blockRect(tx + bx, ty + by, bw, bh);
@@ -329,7 +359,7 @@ export class MapBuilder {
       .filter((q) => !q.floorLayer)
       .sort((a, b) => a.ty + a.prop.h - (b.ty + b.prop.h) || a.order - b.order)
       .forEach(paint);
-    return { ...this.meta, below: this.below, above: this.above, walk: this.walk, areas: this.areas, interactables: this.interactables, spawn: this.spawn };
+    return { ...this.meta, below: this.below, above: this.above, walk: this.walk, areas: this.areas, interactables: this.interactables, flames: this.flames, spawn: this.spawn };
   }
 }
 
@@ -337,6 +367,7 @@ const LANTERN: Prop = {
   w: 1,
   h: 2,
   tall: 1,
+  flames: [[7, 5, "small"]],
   draw(p) {
     p.rect(6, 8, 4, 21, C.outline);
     p.rect(7, 8, 2, 21, C.beamDark);

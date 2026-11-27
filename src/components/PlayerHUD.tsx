@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import type { GameBus, GameEvents } from "@/game/events";
 import { LocationPicker } from "./LocationPicker";
 import { BarMenu, ChartPanel } from "./ActivityPanels";
+import { SkillsPanel } from "./SkillsPanel";
+import { levelFor, type AbilityId } from "@/game/systems/skills";
 import type { DrinkId } from "@/game/systems/interactions";
 
 /**
@@ -18,6 +20,9 @@ export function PlayerHUD({ bus }: { bus: GameBus }) {
   const [said, setSaid] = useState<{ text: string; key: number } | null>(null);
   const [panel, setPanel] = useState<GameEvents["activity"] | null>(null);
   const [touch, setTouch] = useState(false);
+  const [skills, setSkills] = useState<GameEvents["skills"]>({ xp: {}, parrot: false });
+  const [skillsOpen, setSkillsOpen] = useState(false);
+  const [xpChip, setXpChip] = useState<{ text: string; key: number } | null>(null);
   const [welcome, setWelcome] = useState<string | null>(null);
   const [area, setArea] = useState<string | null>(null);
   const [areaKey, setAreaKey] = useState(0);
@@ -48,6 +53,9 @@ export function PlayerHUD({ bus }: { bus: GameBus }) {
     const offPrompt = bus.on("prompt", (p) => setPrompt(p?.label ?? null));
     const offSay = bus.on("say", ({ text }) => setSaid({ text, key: ++says }));
     const offActivity = bus.on("activity", setPanel);
+    const offSkills = bus.on("skills", setSkills);
+    let chips = 0;
+    const offXp = bus.on("xp", ({ skill, gained }) => setXpChip({ text: `+${gained} ${skill}`, key: ++chips }));
     let arrivals = 0;
     const offLocation = bus.on("location", (loc) => {
       setLocation(loc);
@@ -58,6 +66,8 @@ export function PlayerHUD({ bus }: { bus: GameBus }) {
       offPrompt();
       offSay();
       offActivity();
+      offSkills();
+      offXp();
       offLocation();
       offReady();
       offArea();
@@ -76,7 +86,15 @@ export function PlayerHUD({ bus }: { bus: GameBus }) {
     [bus],
   );
   // Freeze walking while any panel is open.
-  const anyPanel = pickerOpen || panel !== null;
+  const anyPanel = pickerOpen || skillsOpen || panel !== null;
+  const closeSkills = useCallback(() => setSkillsOpen(false), []);
+  const useAbility = useCallback(
+    (id: AbilityId) => {
+      setSkillsOpen(false);
+      bus.emit("ability", { id });
+    },
+    [bus],
+  );
   useEffect(() => {
     bus.emit("pause", { paused: anyPanel });
   }, [bus, anyPanel]);
@@ -155,7 +173,25 @@ export function PlayerHUD({ bus }: { bus: GameBus }) {
         </div>
       )}
       {panel?.kind === "chart" && <ChartPanel title={panel.title} text={panel.text} onClose={closePanel} />}
-      {panel?.kind === "bar" && <BarMenu onPick={pickDrink} onClose={closePanel} />}
+      {panel?.kind === "bar" && <BarMenu onPick={pickDrink} onClose={closePanel} secret={levelFor(skills.xp.brewing ?? 0) >= 2} />}
+      {skillsOpen && <SkillsPanel xp={skills.xp} parrot={skills.parrot} onAbility={useAbility} onClose={closeSkills} />}
+      <button
+        type="button"
+        onClick={() => setSkillsOpen(true)}
+        disabled={!location}
+        aria-haspopup="dialog"
+        className="font-heading pointer-events-auto absolute right-[calc(env(safe-area-inset-right)+12px)] top-[calc(env(safe-area-inset-top)+56px)] flex items-center gap-2 rounded-full border-2 border-[#3b2414] bg-[#f4ead5] px-4 py-1.5 text-sm font-bold tracking-wide text-[#3b2414] shadow-[0_3px_0_#3b2414] [text-shadow:none] active:translate-y-0.5 active:shadow-none disabled:opacity-0"
+      >
+        Skills
+      </button>
+      {xpChip && (
+        <div
+          key={`xp-${xpChip.key}`}
+          className="hud-fade absolute right-[calc(env(safe-area-inset-right)+12px)] top-[calc(env(safe-area-inset-top)+98px)] rounded-full bg-[#3b2414]/85 px-3 py-1 text-sm text-[#f6d27a] [text-shadow:none]"
+        >
+          {xpChip.text}
+        </div>
+      )}
       {pickerOpen && <LocationPicker current={location?.mapId ?? null} onPick={travel} onClose={closePicker} />}
       {debug && stats && (
         <div className="absolute left-2 top-2 bg-black/60 px-2 py-1 font-mono text-[11px] [text-shadow:none]">
