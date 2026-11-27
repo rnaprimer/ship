@@ -49,7 +49,7 @@ export default function Home() {
         </div>
       </div>
 
-      <footer className="mt-6 flex justify-center lg:justify-start">
+      <footer className="mt-6 flex flex-col items-center gap-3 text-center sm:flex-row sm:gap-6 lg:items-start lg:justify-start lg:text-left">
         <a
           href="https://www.instagram.com/peekatribe/"
           className="text-sm font-medium text-[#0b3a47] underline underline-offset-4"
@@ -57,6 +57,14 @@ export default function Home() {
           target="_blank"
         >
           No boarding pass yet? Comment on our Reel @peekatribe
+        </a>
+        <a
+          href="https://buymeacoffee.com/rnaprimer"
+          className="inline-flex items-center gap-1.5 rounded-full border-2 border-[#0b3a47] bg-[#ffdd00] px-3 py-1 text-sm font-semibold text-[#0b3a47] shadow-[2px_2px_0_#0b3a47] transition hover:-translate-y-0.5 hover:shadow-[3px_3px_0_#0b3a47]"
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          <span aria-hidden="true">☕</span> Buy me a coffee
         </a>
       </footer>
     </main>

@@ -91,7 +91,7 @@ body {
   background-color: #0dc0df;
 }
 .home-ship {
-  animation: home-ship-sail 5s ease-in-out infinite;
+  animation: home-ship-sail 10s ease-in-out infinite;
 }
 @keyframes home-ship-sail {
   0%, 100% { transform: translateY(0) rotate(0deg); }
