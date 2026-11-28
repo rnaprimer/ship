@@ -17,6 +17,8 @@ export type PassengerProfile = {
   username: string;
   characterVariant: number;
   outfit: Outfit;
+  /** Aboard in the last 10 minutes. Stale passengers stand still with a "stale" tag. */
+  active: boolean;
 };
 
 /** Where the player starts: their saved spot (on any map), or null for First Deck's spawn point. */

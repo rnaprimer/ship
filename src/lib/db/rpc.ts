@@ -200,6 +200,7 @@ export function samplePassengers(shipId: string, excludePlayerId: string | null,
         crew_role: z.number().int().nullable().default(null),
         outfit_color: z.number().int().default(0),
         hat: z.number().int().default(0),
+        active: z.boolean().default(false),
       }),
     ),
   );

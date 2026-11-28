@@ -43,6 +43,23 @@ export function ShipExperience() {
     };
   }, [router]);
 
+  // Every minute while the page is visible, refresh who is active or stale.
+  useEffect(() => {
+    if (!data) return;
+    const timer = window.setInterval(async () => {
+      if (document.visibilityState !== "visible") return;
+      try {
+        const res = await fetch("/api/ship/passengers", { cache: "no-store" });
+        if (!res.ok) return;
+        const { passengers } = (await res.json()) as { passengers: PassengerProfile[] };
+        bus.emit("passengers", { passengers: passengers.map((p) => ({ username: p.username, active: p.active })) });
+      } catch {
+        // Offline for a moment: keep the last known state.
+      }
+    }, 60_000);
+    return () => window.clearInterval(timer);
+  }, [bus, data]);
+
   if (failed) {
     return (
       <div className="font-pixel absolute inset-0 flex items-center justify-center px-6 text-center text-base leading-relaxed text-[#f4ead5]">

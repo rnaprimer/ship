@@ -186,6 +186,18 @@ export class ShipScene extends Phaser.Scene {
     this.cleanup.push(this.bus.on("drink", ({ drink }) => this.drink(drink as DrinkId)));
     this.cleanup.push(this.bus.on("pause", ({ paused }) => (this.paused = paused)));
     this.cleanup.push(this.bus.on("ability", ({ id }) => this.useAbility(id)));
+    this.cleanup.push(
+      this.bus.on("passengers", ({ passengers }) => {
+        const active = new Map(passengers.map((p) => [p.username, p.active]));
+        for (const p of this.passengers) {
+          const a = active.get(p.username);
+          if (a !== undefined) p.setActive(a);
+        }
+        // Keep the newest flags for the next map too.
+        const known = (this.registry.get(REGISTRY.passengers) as PassengerProfile[]) ?? [];
+        this.registry.set(REGISTRY.passengers, known.map((p) => (active.has(p.username) ? { ...p, active: active.get(p.username)! } : p)));
+      }),
+    );
     this.cleanup.push(this.bus.on("look", (look) => this.changeLook(look.characterVariant, look.outfit)));
     const roleAction = () => this.roleAction();
     kb?.on("keydown-R", roleAction);
@@ -277,7 +289,7 @@ export class ShipScene extends Phaser.Scene {
     const room = Math.min(15, Math.floor(candidates.length / 25));
     this.passengers = Phaser.Utils.Array.Shuffle([...profiles])
       .slice(0, room)
-      .map((p, i) => new AmbientPassenger(this, map, candidates[i], p.characterVariant, p.outfit ?? PLAIN_OUTFIT, p.username, Math.random));
+      .map((p, i) => new AmbientPassenger(this, map, candidates[i], p.characterVariant, p.outfit ?? PLAIN_OUTFIT, p.username, p.active !== false, Math.random));
   }
 
   private savePosition(final: boolean) {

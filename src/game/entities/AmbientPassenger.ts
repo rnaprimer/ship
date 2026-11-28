@@ -24,8 +24,10 @@ export class AmbientPassenger {
   private path: TilePoint[] = [];
   private waitMs: number;
   private direction: Direction = "down";
+  private active: boolean;
+  readonly username: string;
 
-  constructor(scene: Phaser.Scene, map: WalkableMap, start: TilePoint, variant: number, outfit: Outfit, username: string, rng: () => number) {
+  constructor(scene: Phaser.Scene, map: WalkableMap, start: TilePoint, variant: number, outfit: Outfit, username: string, active: boolean, rng: () => number) {
     this.map = map;
     this.variant = clampVariant(variant);
     this.rng = rng;
@@ -34,7 +36,29 @@ export class AmbientPassenger {
     this.layers = new CharacterLayers(scene, outfit);
     this.label = new NameLabel(scene, username, false);
     this.waitMs = 500 + rng() * 3000;
+    this.username = username;
+    this.active = true;
     this.sprite.anims.play(animKey(this.variant, "idle", "down"));
+    this.setActive(active);
+  }
+
+  /**
+   * Stale passengers (not aboard in the last 10 minutes) stop where they are,
+   * stand still facing the deck and show a "stale" tag.
+   */
+  setActive(active: boolean): void {
+    if (active === this.active) return;
+    this.active = active;
+    this.label.setStale(!active);
+    if (active) {
+      this.sprite.setAlpha(1);
+      this.waitMs = 500 + this.rng() * 2000;
+      this.sprite.anims.play(animKey(this.variant, "idle", this.direction), true);
+    } else {
+      // Finish the step to the next tile centre, then stand still.
+      this.path = this.path.slice(0, 1);
+      this.sprite.setAlpha(0.8);
+    }
   }
 
   /** Feet position for standing in the middle of a tile. */
@@ -65,7 +89,11 @@ export class AmbientPassenger {
   }
 
   update(deltaMs: number, depthBase: number): void {
-    if (this.path.length === 0) {
+    if (this.path.length === 0 && !this.active) {
+      this.direction = "down";
+      this.sprite.anims.stop();
+      this.sprite.setFrame(idleFrame(this.variant, "down"));
+    } else if (this.path.length === 0) {
       this.waitMs -= deltaMs;
       if (this.waitMs <= 0) {
         this.pickNewPath();

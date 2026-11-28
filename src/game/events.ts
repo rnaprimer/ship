@@ -39,6 +39,8 @@ export type GameEvents = {
   look: { characterVariant: number; outfit: Outfit };
   /** Do your crew role's action (button or R key). */
   roleAction: Record<string, never>;
+  /** A fresh passenger list (polled while the page is visible), to update who is stale. */
+  passengers: { passengers: { username: string; active: boolean }[] };
   /** Debug stats, emitted about once per second. */
   stats: { fps: number; x: number; y: number; direction: Direction };
 };

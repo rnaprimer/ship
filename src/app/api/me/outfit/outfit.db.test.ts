@@ -46,7 +46,7 @@ describe.skipIf(!hasDb)("POST /api/me/outfit (database)", () => {
     const mine = await (await me(req("/api/me", { cookie: a.cookie }))).json();
     expect(mine.player).toMatchObject({ characterVariant: 3, outfit: { role: 4, color: 1, hat: 3 } });
     const seen = (await (await passengers(req("/api/ship/passengers", { cookie: b.cookie }))).json()).passengers;
-    expect(seen.find((p: { username: string }) => p.username === a.username)).toEqual({ username: a.username, characterVariant: 3, outfit: { role: 4, color: 1, hat: 3 } });
+    expect(seen.find((p: { username: string }) => p.username === a.username)).toEqual({ username: a.username, characterVariant: 3, outfit: { role: 4, color: 1, hat: 3 }, active: true });
     // Back to plain clothes.
     expect((await setOutfit(req("/api/me/outfit", { body: { characterVariant: 0, role: null, color: 0, hat: 0 }, cookie: a.cookie }))).status).toBe(204);
     expect(await lookOf(a.playerId)).toEqual({ character_variant: 0, crew_role: null, outfit_color: 0, hat: 0 });

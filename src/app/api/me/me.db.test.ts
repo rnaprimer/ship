@@ -198,6 +198,23 @@ describe.skipIf(!hasDb)("sessions and positions (database)", () => {
   });
 
   describe("GET /api/ship/passengers", () => {
+    it("marks passengers not seen for 10 minutes as stale, and lists active ones first", async () => {
+      const viewer = await board("viewer");
+      const fresh = await board("fresh");
+      const away = await board("away");
+      // Both have used their session just now; send one back in time.
+      await me(req("/api/me", { cookie: fresh.cookie }));
+      await admin().from("players").update({ last_seen_at: new Date(Date.now() - 11 * 60_000).toISOString() }).eq("id", away.playerId);
+      const list = (await (await passengers(req("/api/ship/passengers", { cookie: viewer.cookie }))).json()).passengers as {
+        username: string;
+        active: boolean;
+      }[];
+      expect(list.find((p) => p.username === fresh.username)?.active).toBe(true);
+      expect(list.find((p) => p.username === away.username)?.active).toBe(false);
+      const firstStale = list.findIndex((p) => !p.active);
+      if (firstStale >= 0) expect(list.slice(firstStale).every((p) => !p.active)).toBe(true);
+    });
+
     it("lists other passengers by username and look only, excluding the caller", async () => {
       const a = await board("listed");
       await board("other");
@@ -205,7 +222,7 @@ describe.skipIf(!hasDb)("sessions and positions (database)", () => {
       const body = await res.json();
       expect(body.passengers.length).toBeGreaterThan(0);
       for (const p of body.passengers) {
-        expect(Object.keys(p).sort()).toEqual(["characterVariant", "outfit", "username"]);
+        expect(Object.keys(p).sort()).toEqual(["active", "characterVariant", "outfit", "username"]);
         expect(Object.keys(p.outfit).sort()).toEqual(["color", "hat", "role"]);
       }
       expect(body.passengers.map((p: { username: string }) => p.username)).not.toContain(a.username);
