@@ -4,6 +4,8 @@ import { findPath, isWalkableTile, type TilePoint, type WalkableMap } from "../s
 import { PASSENGER_SPEED, facingFrom, moveToward } from "../systems/movement";
 import { CHARACTER_FRAME, CHARACTER_TEXTURE, animKey, clampVariant, idleFrame } from "./characterAnims";
 import { NameLabel } from "./NameLabel";
+import { CharacterLayers } from "./CharacterLayers";
+import type { Outfit } from "../outfits";
 
 const WANDER_RADIUS = 9; // tiles
 
@@ -15,6 +17,7 @@ const WANDER_RADIUS = 9; // tiles
 export class AmbientPassenger {
   private readonly sprite: Phaser.GameObjects.Sprite;
   private readonly label: NameLabel;
+  private readonly layers: CharacterLayers;
   private readonly map: WalkableMap;
   private readonly variant: number;
   private readonly rng: () => number;
@@ -22,12 +25,13 @@ export class AmbientPassenger {
   private waitMs: number;
   private direction: Direction = "down";
 
-  constructor(scene: Phaser.Scene, map: WalkableMap, start: TilePoint, variant: number, username: string, rng: () => number) {
+  constructor(scene: Phaser.Scene, map: WalkableMap, start: TilePoint, variant: number, outfit: Outfit, username: string, rng: () => number) {
     this.map = map;
     this.variant = clampVariant(variant);
     this.rng = rng;
     const p = this.tileFeet(start);
     this.sprite = scene.add.sprite(p.x, p.y, CHARACTER_TEXTURE, idleFrame(this.variant, "down")).setOrigin(0.5, 1);
+    this.layers = new CharacterLayers(scene, outfit);
     this.label = new NameLabel(scene, username, false);
     this.waitMs = 500 + rng() * 3000;
     this.sprite.anims.play(animKey(this.variant, "idle", "down"));
@@ -77,6 +81,7 @@ export class AmbientPassenger {
       this.play("walk");
     }
     this.sprite.setDepth(depthBase + this.sprite.y / 10000);
+    this.layers.follow(this.sprite);
     this.label.follow(this.sprite.x, this.sprite.y - CHARACTER_FRAME.height);
   }
 
@@ -86,6 +91,7 @@ export class AmbientPassenger {
   }
 
   destroy(): void {
+    this.layers.destroy();
     this.label.destroy();
     this.sprite.destroy();
   }

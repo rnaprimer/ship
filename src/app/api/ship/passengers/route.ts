@@ -1,4 +1,4 @@
-import { authenticate } from "@/lib/player/service";
+import { authenticate, lookOf } from "@/lib/player/service";
 import { samplePassengers } from "@/lib/db/rpc";
 import { json } from "@/lib/http/request";
 import { serverEnv } from "@/lib/env";
@@ -11,6 +11,6 @@ export async function GET(request: Request) {
   const me = await authenticate(request);
   const rows = await samplePassengers(serverEnv().SHIP_ID, me?.player_id ?? null, 15);
   return json({
-    passengers: rows.map((r) => ({ username: r.username, characterVariant: r.character_variant })),
+    passengers: rows.map((r) => ({ username: r.username, ...lookOf(r) })),
   });
 }

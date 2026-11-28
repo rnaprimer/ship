@@ -1,6 +1,7 @@
 import * as Phaser from "phaser";
 import { ASSET_BASE, MAP_IDS } from "../maps";
 import { CHARACTER_FRAME, CHARACTER_TEXTURE, createCharacterAnims } from "../entities/characterAnims";
+import { HAT_TEXTURE, LAYER_FRAME, OUTFIT_TEXTURE } from "../entities/CharacterLayers";
 
 export const ASSETS = {
   ocean: "ocean",
@@ -43,6 +44,9 @@ export class PreloadScene extends Phaser.Scene {
       frameWidth: CHARACTER_FRAME.width,
       frameHeight: CHARACTER_FRAME.height,
     });
+    // Crew outfits and hats drawn over the body (scripts/art/outfits.ts).
+    this.load.spritesheet(OUTFIT_TEXTURE, "outfits.png", { frameWidth: LAYER_FRAME.width, frameHeight: LAYER_FRAME.height });
+    this.load.spritesheet(HAT_TEXTURE, "hats.png", { frameWidth: LAYER_FRAME.width, frameHeight: LAYER_FRAME.height });
     this.load.bitmapFont(ASSETS.font, "ship-font.png", "ship-font.xml");
     // Hand-drawn animations (art/props.px.js, built with pxl).
     this.load.spritesheet(ASSETS.flame, "anims/flame.png", { frameWidth: 7, frameHeight: 10 });

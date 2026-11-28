@@ -204,7 +204,10 @@ describe.skipIf(!hasDb)("sessions and positions (database)", () => {
       const res = await passengers(req("/api/ship/passengers", { cookie: a.cookie }));
       const body = await res.json();
       expect(body.passengers.length).toBeGreaterThan(0);
-      for (const p of body.passengers) expect(Object.keys(p).sort()).toEqual(["characterVariant", "username"]);
+      for (const p of body.passengers) {
+        expect(Object.keys(p).sort()).toEqual(["characterVariant", "outfit", "username"]);
+        expect(Object.keys(p.outfit).sort()).toEqual(["color", "hat", "role"]);
+      }
       expect(body.passengers.map((p: { username: string }) => p.username)).not.toContain(a.username);
     });
   });

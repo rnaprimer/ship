@@ -103,3 +103,24 @@ export function click(freq = 900): void {
   o.start(t);
   o.stop(t + 0.1);
 }
+
+/** A few bright notes of a sea shanty (the musician's tune). */
+export function shanty(): void {
+  const a = audio();
+  if (!a) return;
+  const notes = [392, 440, 494, 587, 494, 440, 392, 494];
+  const t0 = a.currentTime;
+  notes.forEach((f, i) => {
+    const t = t0 + i * 0.16;
+    const o = a.createOscillator();
+    o.type = "triangle";
+    o.frequency.setValueAtTime(f, t);
+    const g = a.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.08, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.15);
+    o.connect(g).connect(a.destination);
+    o.start(t);
+    o.stop(t + 0.17);
+  });
+}

@@ -68,7 +68,7 @@ export function ShipExperience() {
         savePosition={sendPosition}
       />
       <VirtualJoystick bus={bus} />
-      <PlayerHUD bus={bus} />
+      <PlayerHUD bus={bus} player={data.player} />
     </>
   );
 }

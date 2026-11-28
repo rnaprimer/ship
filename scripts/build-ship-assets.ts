@@ -21,6 +21,7 @@ import { encodePng } from "./lib/png.ts";
 import { Canvas } from "./lib/canvas.ts";
 import { drawFoam, drawOcean } from "./art/ocean.ts";
 import { drawCharacters } from "./art/characters.ts";
+import { drawHats, drawOutfits } from "./art/outfits.ts";
 import { buildFont } from "./art/font.ts";
 import { drawChart } from "./art/chart.ts";
 import { allMaps } from "./maps/index.ts";
@@ -42,6 +43,8 @@ const writePng = (path: string, c: Canvas) => writeFileSync(path, encodePng(c.wi
 writePng(join(publicDir, "ocean.png"), drawOcean());
 writePng(join(publicDir, "foam.png"), drawFoam());
 writePng(join(publicDir, "characters.png"), drawCharacters());
+writePng(join(publicDir, "outfits.png"), drawOutfits());
+writePng(join(publicDir, "hats.png"), drawHats());
 const font = buildFont("ship-font.png");
 writePng(join(publicDir, "ship-font.png"), font.canvas);
 writeFileSync(join(publicDir, "ship-font.xml"), font.xml);

@@ -11,8 +11,9 @@ import { combineInput, JOYSTICK_DEADZONE, type Vec } from "../systems/movement";
 import { pickZoom } from "../systems/zoom";
 import { DRINKS, GLOBE_PLACES, nearestInteractable, type DrinkId, type Interactable } from "../systems/interactions";
 import { award, hasPerk, loadSkills, perkAt, saveSkills, SKILLS, type StoredSkills } from "../systems/skills";
-import { boom, click, clink, splash } from "../systems/sfx";
+import { boom, click, clink, shanty, splash } from "../systems/sfx";
 import { ActivityEffects } from "../effects/ActivityEffects";
+import { PLAIN_OUTFIT, cleanOutfit, roleOf, type Outfit } from "../outfits";
 
 export const DEPTH = {
   ocean: -20,
@@ -57,6 +58,8 @@ export class ShipScene extends Phaser.Scene {
   private busyUntil = 0;
   private drift = 0;
   private driftBoostUntil = 0;
+  private outfit: Outfit = PLAIN_OUTFIT;
+  private roleBusyUntil = 0;
   private tipsyUntil = 0;
   private lightsOverlay: Phaser.GameObjects.Rectangle | null = null;
   // Skills (Milestone 9): kept in this browser, per passenger.
@@ -91,6 +94,8 @@ export class ShipScene extends Phaser.Scene {
     this.parrot = null;
     this.spyglassUntil = 0;
     this.username = profile.username;
+    this.outfit = cleanOutfit(profile.outfit);
+    this.roleBusyUntil = 0;
     this.skills = loadSkills(profile.username);
 
     // Where to start: the map we travelled to (at its spawn), else the saved
@@ -135,7 +140,7 @@ export class ShipScene extends Phaser.Scene {
     }
 
     // --- Player ---
-    this.player = new Player(this, start.x, start.y, profile.characterVariant, profile.username, start.direction);
+    this.player = new Player(this, start.x, start.y, profile.characterVariant, profile.outfit ?? PLAIN_OUTFIT, profile.username, start.direction);
     // After a trip, save the new map on the next periodic save even if the player stands still.
     this.lastSaved = data.mapId ? { x: Number.NaN, y: Number.NaN } : { x: start.x, y: start.y };
     this.physics.world.setBounds(0, 0, this.mapW, this.mapH);
@@ -181,6 +186,11 @@ export class ShipScene extends Phaser.Scene {
     this.cleanup.push(this.bus.on("drink", ({ drink }) => this.drink(drink as DrinkId)));
     this.cleanup.push(this.bus.on("pause", ({ paused }) => (this.paused = paused)));
     this.cleanup.push(this.bus.on("ability", ({ id }) => this.useAbility(id)));
+    this.cleanup.push(this.bus.on("look", (look) => this.changeLook(look.characterVariant, look.outfit)));
+    const roleAction = () => this.roleAction();
+    kb?.on("keydown-R", roleAction);
+    this.cleanup.push(() => kb?.off("keydown-R", roleAction));
+    this.cleanup.push(this.bus.on("roleAction", roleAction));
     this.emitSkills();
     this.spawnFlames();
     if (this.skills.parrot && hasPerk(this.skills.xp, "seamanship", 5)) this.setParrot(true);
@@ -267,7 +277,7 @@ export class ShipScene extends Phaser.Scene {
     const room = Math.min(15, Math.floor(candidates.length / 25));
     this.passengers = Phaser.Utils.Array.Shuffle([...profiles])
       .slice(0, room)
-      .map((p, i) => new AmbientPassenger(this, map, candidates[i], p.characterVariant, p.username, Math.random));
+      .map((p, i) => new AmbientPassenger(this, map, candidates[i], p.characterVariant, p.outfit ?? PLAIN_OUTFIT, p.username, Math.random));
   }
 
   private savePosition(final: boolean) {
@@ -426,6 +436,109 @@ export class ShipScene extends Phaser.Scene {
     } else if (id === "bubbles" && this.lvl("brewing", 5)) {
       this.bubblesUntil = this.time.now + 20_000;
       this.say("You sip a rainbow brew. Bubbles follow in your wake!");
+    }
+  }
+
+  /** A Wardrobe change: redraw now, and keep it for trips to other maps. */
+  private changeLook(characterVariant: number, outfit: Outfit) {
+    this.outfit = cleanOutfit(outfit);
+    this.player.setLook(characterVariant, this.outfit);
+    const profile = this.registry.get(REGISTRY.player) as PlayerProfile;
+    this.registry.set(REGISTRY.player, { ...profile, characterVariant, outfit: this.outfit });
+    this.fx.burst(this.player.x, this.player.y - 12, { count: 16, colors: [0xffffff, 0xf6d27a], spread: 14, rise: 10, life: 700 });
+  }
+
+  /** Your crew role's action: a short, harmless flourish (owner decision 2026-11-28). */
+  private roleAction() {
+    const role = roleOf(this.outfit);
+    if (!role || this.paused || this.traveling || this.time.now < this.roleBusyUntil) return;
+    this.roleBusyUntil = this.time.now + 1500;
+    const px = this.player.x;
+    const py = this.player.y;
+    const head = { x: px, y: py - 26 };
+    const pick = <T,>(xs: T[]) => xs[Math.floor(Math.random() * xs.length)];
+    const ahead = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[this.player.direction];
+    switch (role.id) {
+      case "captain":
+        click(500);
+        this.fx.ring(px, py - 2, 0xf6d27a, 26, 900);
+        this.time.delayedCall(200, () => this.fx.ring(px, py - 2, 0xf6d27a, 40, 900, 0.45));
+        this.fx.burst(head.x, head.y, { count: 14, colors: [0xf6d27a, 0xffffff], spread: 12, rise: 14, life: 800 });
+        this.say(pick(["All hands on deck!", "Hoist the colours, crew!", "Steady as she goes!", "Look lively, the horizon's waiting!"]));
+        break;
+      case "swordsman":
+        for (let i = 0; i < 3; i++)
+          this.time.delayedCall(i * 220, () => {
+            const side = i % 2 ? 1 : -1;
+            clink();
+            this.fx.flash(px + side * 10, py - 14 + i * 3, 0xffffff, 5);
+            this.fx.burst(px + side * 10, py - 14 + i * 3, { count: 6, colors: [0xe8eef5, 0xffffff], spread: 8, life: 250 });
+          });
+        this.say(pick(["Swish, swish, swish! A flawless drill.", "Parry, riposte, bow. The gulls are impressed.", "Your cutlass flashes in the light."]));
+        break;
+      case "navigator":
+        for (let i = 0; i < 4; i++)
+          this.time.delayedCall(i * 120, () =>
+            this.fx.burst(px - 30 + i * 6, py - 30 + i * 8, { count: 5, colors: [0xffffff, 0xcfe8ef], spread: 18, life: 700, gravity: 0 }),
+          );
+        this.fx.ring(px, py - 2, 0x7fe8ff, 20, 800);
+        this.say(`You lick a finger and test the air. Wind from the ${pick(["north-west", "south-east", "east", "west", "north"])}, ${pick(["fair and steady", "freshening by the hour", "with rain behind it", "perfect for the Lantern Isles"])}.`);
+        break;
+      case "sniper": {
+        const tx = px + ahead[0] * 56;
+        const ty = py - 12 + ahead[1] * 40;
+        click(1400);
+        this.time.delayedCall(180, () => {
+          this.fx.flash(tx, ty, 0xffe08a, 6);
+          this.fx.rise(tx, ty, "fx-star", { distance: 10, duration: 700 });
+          click(2200);
+        });
+        this.say(pick(["Ping! A perfect trick shot.", "Ping… ping… PING! It bounces three times.", "Thwack! Right through a knot in the mast."]));
+        break;
+      }
+      case "cook":
+        this.fx.smoke(px, head.y + 2, 6, 0xf4f1ea);
+        this.fx.rise(head.x, head.y, "fx-bowl", { distance: 16 });
+        splash(0);
+        this.say(pick(["A pot of fish stew, thick enough to stand a spoon in.", "You stir up a spicy sea-pepper soup. The galley smells amazing.", "Hot biscuits and gravy, coming right up!"]));
+        break;
+      case "doctor": {
+        const wasTipsy = this.time.now < this.tipsyUntil;
+        this.tipsyUntil = 0;
+        for (let i = 0; i < 3; i++) this.fx.rise(px - 8 + i * 8, head.y + 4, "fx-cross", { delay: i * 180, distance: 14 });
+        this.fx.ring(px, py - 2, 0x4fd68a, 20, 800);
+        this.say(wasTipsy ? "A quick remedy. The deck stops swaying." : pick(["Bandaged, checked and fit for duty.", "A spoonful of tonic. You feel brand new.", "Pulse steady, sea legs strong. A clean bill of health."]));
+        break;
+      }
+      case "archaeologist":
+        for (let i = 0; i < 4; i++) this.fx.rise(px - 12 + i * 8, head.y + 6, "fx-rune", { delay: i * 150, distance: 16 });
+        this.fx.ring(px, py - 2, 0x7fe8ff, 24, 1000);
+        this.say(pick([
+          "The runes read: 'The ship remembers every sailor who walks her decks.'",
+          "Old carvings tell of a lantern that never goes out, hidden below the waterline.",
+          "The glyphs point west, to an island that only appears at dusk.",
+          "Scratched under the varnish: 'Captain's biscuits. Do NOT eat.'",
+        ]));
+        break;
+      case "shipwright":
+        for (let i = 0; i < 3; i++)
+          this.time.delayedCall(i * 230, () => {
+            clink();
+            this.fx.burst(px + ahead[0] * 10, py - 2 + ahead[1] * 6, { count: 8, colors: [0xffd36b, 0xffffff, 0xff8a3c], spread: 8, rise: 6, life: 300 });
+          });
+        this.cameras.main.shake(150, 0.0015);
+        this.say(pick(["Tap, tap, tap. That plank won't creak again.", "A new peg, a dab of tar, good as new.", "You check the timbers. She's sound as a bell."]));
+        break;
+      case "musician":
+        shanty();
+        for (let i = 0; i < 5; i++) this.fx.rise(px - 10 + ((i * 7) % 20), head.y + 2, "fx-note", { delay: i * 200, distance: 20 });
+        this.say(pick(["You strike up a shanty. Somewhere below, someone taps their foot.", "A lively jig! The ropes seem to sway along.", "A slow ballad about the sea. Even the gulls go quiet."]));
+        break;
+      case "helmsman":
+        for (let i = 0; i < 3; i++) this.time.delayedCall(i * 200, () => this.fx.ring(px, py - 2, 0x6fd0e6, 18 + i * 10, 900, 0.45));
+        if (this.map.outdoor) this.driftBoostUntil = this.time.now + 4000;
+        this.say(this.map.outdoor ? "You read the current and the ship finds a faster line." : "You feel the current through the hull. Steady.");
+        break;
     }
   }
 

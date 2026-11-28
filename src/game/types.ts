@@ -1,3 +1,5 @@
+import type { Outfit } from "./outfits";
+
 export type Direction = "up" | "down" | "left" | "right";
 
 export const DIRECTIONS: readonly Direction[] = ["down", "left", "right", "up"];
@@ -8,11 +10,13 @@ export const CHARACTER_VARIANT_COUNT = 6;
 export type PlayerProfile = {
   username: string;
   characterVariant: number;
+  outfit: Outfit;
 };
 
 export type PassengerProfile = {
   username: string;
   characterVariant: number;
+  outfit: Outfit;
 };
 
 /** Where the player starts: their saved spot (on any map), or null for First Deck's spawn point. */

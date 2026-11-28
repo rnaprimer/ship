@@ -8,19 +8,19 @@ export const FRAMES_PER_ROW = 6;
 export const DIRECTION_ORDER = ["down", "left", "right", "up"] as const;
 export const VARIANTS = 6;
 
-type Palette = Record<string, Color>;
+export type Palette = Record<string, Color>;
 
-const OUTLINE = "#1e1420";
+export const OUTLINE = "#1e1420";
 
 /** Mixes a hex colour towards another (t = 0..1). */
-function mix(a: string, b: string, t: number): string {
+export function mix(a: string, b: string, t: number): string {
   const pa = [1, 3, 5].map((i) => parseInt(a.slice(i, i + 2), 16));
   const pb = [1, 3, 5].map((i) => parseInt(b.slice(i, i + 2), 16));
   return `#${pa.map((v, i) => Math.round(v + (pb[i] - v) * t).toString(16).padStart(2, "0")).join("")}`;
 }
 
 // shirt c/C, hair h/H, skin s/S, pants p/P. Highlights are derived.
-const VARIANT_BASES: Palette[] = [
+export const VARIANT_BASES: Palette[] = [
   { c: "#2f8f83", C: "#1f6a61", h: "#5a3a22", H: "#3f2716", s: "#f2c79b", S: "#d9a57a", p: "#2c3a5a", P: "#1f2a43" },
   { c: "#c2483d", C: "#8f3029", h: "#2e2a33", H: "#17151a", s: "#c98d5e", S: "#a56f45", p: "#4a3b2a", P: "#33281c" },
   { c: "#e3b341", C: "#b38726", h: "#c0612b", H: "#8f4520", s: "#f6d2b4", S: "#dcae8c", p: "#3a4a3a", P: "#283428" },
@@ -29,7 +29,7 @@ const VARIANT_BASES: Palette[] = [
   { c: "#5c9a3c", C: "#41702a", h: "#d9708f", H: "#a84f6a", s: "#6b4330", S: "#4e2f21", p: "#5a3b2a", P: "#3f291c" },
 ];
 
-function paletteFor(base: Palette): Palette {
+export function paletteFor(base: Palette): Palette {
   return {
     ...base,
     o: OUTLINE,
@@ -152,9 +152,9 @@ function sideArm(c: Cell, x: number, dy: number, pal: Palette) {
   c.rect(x, 17 + dy, 3, 1, pal.o);
 }
 
-type Dir = (typeof DIRECTION_ORDER)[number];
+export type Dir = (typeof DIRECTION_ORDER)[number];
 
-function drawFrame(c: Cell, dir: Dir, frame: number, pal: Palette) {
+export function drawFrame(c: Cell, dir: Dir, frame: number, pal: Palette) {
   const walking = frame >= 2;
   const step = frame - 2; // 0..3 when walking
   const bob = walking ? (step % 2 === 0 ? 1 : 0) : frame === 1 ? 1 : 0;

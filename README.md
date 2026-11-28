@@ -172,6 +172,21 @@ every 12 s). Levels 2–5 unlock upgraded activities; level 5 gives an ability (
 trail, parrot). Progress is saved in the browser only (`localStorage`, per passenger), validated
 with Zod when read, and never sent to the server.
 
+## Crew outfits (owner decision 2026-11-28)
+
+The in-game **Wardrobe** lets a passenger pick a crew role (Captain, Swordsman, Navigator, Sniper,
+Cook, Doctor, Archaeologist, Shipwright, Musician, Helmsman), an outfit colour, a hat and their
+base look. Roles are generic and the art is original. Each role adds clothes, a held tool and one
+harmless role action (button or R key), such as cooking a stew or playing a shanty. There is no
+combat and no inventory.
+
+- Saved on the server so everyone sees it: `players.crew_role`, `outfit_color`, `hat`, written
+  only by `set_outfit()` through `POST /api/me/outfit` (session only, same origin, Zod strict,
+  30 changes a minute). The ranges are checked in the database too.
+- Art: `scripts/art/outfits.ts` draws `outfits.png` and `hats.png` as 24×32 layers over the 16×24
+  body, frame for frame. `node scripts/preview-outfits.ts out.png [scale] [roles]` writes an
+  enlarged preview. The lists in `src/game/outfits.ts` are stored by index, so only append to them.
+
 ## How it fits together
 
 ```

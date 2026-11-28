@@ -7,12 +7,17 @@ import { BarMenu, ChartPanel } from "./ActivityPanels";
 import { SkillsPanel } from "./SkillsPanel";
 import { levelFor, type AbilityId } from "@/game/systems/skills";
 import type { DrinkId } from "@/game/systems/interactions";
+import type { PlayerProfile } from "@/game/types";
+import { cleanOutfit, roleOf } from "@/game/outfits";
+import { WardrobePanel, type Look } from "./WardrobePanel";
 
 /**
  * Overlay: welcome toast, arrival banner, current area, the ship-map button
  * and picker, desktop controls hint, optional FPS (?debug).
  */
-export function PlayerHUD({ bus }: { bus: GameBus }) {
+export function PlayerHUD({ bus, player }: { bus: GameBus; player: PlayerProfile }) {
+  const [look, setLook] = useState<Look>(() => ({ characterVariant: player.characterVariant, outfit: cleanOutfit(player.outfit) }));
+  const [wardrobeOpen, setWardrobeOpen] = useState(false);
   const [location, setLocation] = useState<GameEvents["location"] | null>(null);
   const [arrival, setArrival] = useState<{ name: string; key: number } | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -86,7 +91,17 @@ export function PlayerHUD({ bus }: { bus: GameBus }) {
     [bus],
   );
   // Freeze walking while any panel is open.
-  const anyPanel = pickerOpen || skillsOpen || panel !== null;
+  const anyPanel = pickerOpen || skillsOpen || wardrobeOpen || panel !== null;
+  const closeWardrobe = useCallback(() => setWardrobeOpen(false), []);
+  const wearLook = useCallback(
+    (next: Look) => {
+      setLook(next);
+      setWardrobeOpen(false);
+      bus.emit("look", next);
+    },
+    [bus],
+  );
+  const role = roleOf(look.outfit);
   const closeSkills = useCallback(() => setSkillsOpen(false), []);
   const useAbility = useCallback(
     (id: AbilityId) => {
@@ -150,7 +165,7 @@ export function PlayerHUD({ bus }: { bus: GameBus }) {
       {said && (
         <div
           key={`say-${said.key}`}
-          className="say-fade absolute inset-x-0 top-[calc(env(safe-area-inset-top)+92px)] flex justify-center px-4"
+          className="say-fade absolute inset-x-0 top-[calc(env(safe-area-inset-top)+144px)] flex justify-center px-4 sm:top-[calc(env(safe-area-inset-top)+92px)] sm:pr-44"
           aria-live="polite"
         >
           <div className="max-w-md rounded-sm border-2 border-[#3b2414] bg-[#f4ead5]/95 px-4 py-2 text-center text-base leading-snug text-[#3b2414] [text-shadow:none] sm:text-lg">
@@ -184,10 +199,32 @@ export function PlayerHUD({ bus }: { bus: GameBus }) {
       >
         Skills
       </button>
+      <button
+        type="button"
+        onClick={() => setWardrobeOpen(true)}
+        disabled={!location}
+        aria-haspopup="dialog"
+        className="font-heading pointer-events-auto absolute right-[calc(env(safe-area-inset-right)+12px)] top-[calc(env(safe-area-inset-top)+98px)] flex items-center gap-2 rounded-full border-2 border-[#3b2414] bg-[#f4ead5] px-4 py-1.5 text-sm font-bold tracking-wide text-[#3b2414] shadow-[0_3px_0_#3b2414] [text-shadow:none] active:translate-y-0.5 active:shadow-none disabled:opacity-0"
+      >
+        Wardrobe
+      </button>
+      {role && location && !anyPanel && (
+        <button
+          type="button"
+          onClick={() => bus.emit("roleAction", {})}
+          aria-label={`${role.action}${touch ? "" : " (R)"}`}
+          className="font-heading pointer-events-auto absolute bottom-[calc(env(safe-area-inset-bottom)+24px)] right-[calc(env(safe-area-inset-right)+12px)] flex items-center gap-2 rounded-full border-2 border-[#3b2414] bg-[#e0b266] py-1.5 pl-1.5 pr-4 text-sm font-bold text-[#3b2414] shadow-[0_3px_0_#3b2414] [text-shadow:none] active:translate-y-0.5 active:shadow-none sm:text-base"
+        >
+          <span aria-hidden className="flex size-8 items-center justify-center rounded-full bg-[#f4ead5] text-base">{role.icon}</span>
+          {role.action}
+          {!touch && <span className="rounded-sm bg-[#3b2414] px-1.5 text-xs text-[#f4ead5]">R</span>}
+        </button>
+      )}
+      {wardrobeOpen && <WardrobePanel look={look} onSaved={wearLook} onClose={closeWardrobe} />}
       {xpChip && (
         <div
           key={`xp-${xpChip.key}`}
-          className="hud-fade absolute right-[calc(env(safe-area-inset-right)+12px)] top-[calc(env(safe-area-inset-top)+98px)] rounded-full bg-[#3b2414]/85 px-3 py-1 text-sm text-[#f6d27a] [text-shadow:none]"
+          className="hud-fade absolute left-[calc(env(safe-area-inset-left)+12px)] top-[calc(env(safe-area-inset-top)+56px)] rounded-full bg-[#3b2414]/85 px-3 py-1 text-sm text-[#f6d27a] [text-shadow:none]"
         >
           {xpChip.text}
         </div>

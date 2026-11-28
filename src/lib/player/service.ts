@@ -6,6 +6,8 @@ import { getMap } from "@/game/maps";
 import { isFootprintWalkable } from "@/game/systems/walkability";
 import { PLAYER_SPEED } from "@/game/systems/movement";
 import { serverEnv } from "../env";
+import { CHARACTER_VARIANT_COUNT } from "@/game/types";
+import { cleanOutfit, HAT_COUNT, OUTFIT_COLOR_COUNT, ROLE_COUNT } from "@/game/outfits";
 
 export type AuthedPlayer = SessionPlayer & { setCookie?: string };
 
@@ -75,4 +77,19 @@ export async function savePlayerPosition(
     ...POSITION_RULES,
   });
   return result === "OK" ? { ok: true } : { ok: false, error: result };
+}
+
+/** Body of POST /api/me/outfit. Strict: the body cannot name a player. */
+export const OutfitBody = z
+  .object({
+    characterVariant: z.number().int().min(0).max(CHARACTER_VARIANT_COUNT - 1),
+    role: z.number().int().min(0).max(ROLE_COUNT - 1).nullable(),
+    color: z.number().int().min(0).max(OUTFIT_COLOR_COUNT - 1),
+    hat: z.number().int().min(0).max(HAT_COUNT - 1),
+  })
+  .strict();
+
+/** The look other code shows: base variant plus outfit, with anything unexpected made plain. */
+export function lookOf(row: { character_variant: number; crew_role: number | null; outfit_color: number; hat: number }) {
+  return { characterVariant: row.character_variant, outfit: cleanOutfit({ role: row.crew_role, color: row.outfit_color, hat: row.hat }) };
 }

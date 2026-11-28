@@ -34,6 +34,7 @@ describe.skipIf(!hasDb || !publishable)("anonymous access is denied", () => {
       p_session_hash: "0".repeat(64), p_session_expires: new Date().toISOString(), p_map_id: "ship-main",
       p_map_version: 1, p_spawn_x: 0, p_spawn_y: 0, p_spawn_direction: "up",
     }],
+    ["set_outfit", { p_player_id: "00000000-0000-4000-8000-000000000000", p_character_variant: 0, p_crew_role: 1, p_outfit_color: 0, p_hat: 0 }],
     ["touch_session", { p_token_hash: "0".repeat(64), p_renew_before: new Date().toISOString(), p_new_expires: new Date().toISOString() }],
     ["save_position", {
       p_player_id: "00000000-0000-4000-8000-000000000000", p_map_id: "grand-lobby", p_map_version: 1, p_x: 0, p_y: 0,

@@ -13,6 +13,11 @@ const ICONS: Array<[string, string[], Record<string, number>]> = [
     { o: 0x1c0f08, d: 0xffffff },
   ],
   ["fx-z", ["oooo", "..o.", ".o..", "oooo"], { o: 0xf4ead5 }],
+  ["fx-note", ["..ooo", "..o.o", "..o..", "..o..", "ooo..", "ooo.."], { o: 0xfff4d6 }],
+  ["fx-cross", [".ggg.", "ggwgg", "gwwwg", "ggwgg", ".ggg."], { g: 0x2f9a55, w: 0xffffff }],
+  ["fx-bowl", ["..s.s..", ".s.s...", "ooooooo", "obbbbbo", ".obbbo.", "..ooo.."], { s: 0xffffff, o: 0x3b2414, b: 0xc8743a }],
+  ["fx-rune", ["o...o", "oo.oo", "o.o.o", "o...o", "o...o"], { o: 0x7fe8ff }],
+  ["fx-star", ["..o..", ".ooo.", "ooooo", ".ooo.", ".o.o."], { o: 0xffe08a }],
 ];
 
 /**

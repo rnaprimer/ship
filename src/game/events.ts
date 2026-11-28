@@ -4,6 +4,7 @@
  * pulling Phaser into the server or main client bundle.
  */
 import type { Direction } from "./types";
+import type { Outfit } from "./outfits";
 
 export type GameEvents = {
   /** Game finished loading and the player has spawned. */
@@ -34,6 +35,10 @@ export type GameEvents = {
   xp: { skill: string; gained: number };
   /** Use a level-5 ability from the skills panel. */
   ability: { id: string };
+  /** The player's look changed in the Wardrobe (already saved on the server). */
+  look: { characterVariant: number; outfit: Outfit };
+  /** Do your crew role's action (button or R key). */
+  roleAction: Record<string, never>;
   /** Debug stats, emitted about once per second. */
   stats: { fps: number; x: number; y: number; direction: Direction };
 };

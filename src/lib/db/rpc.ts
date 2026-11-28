@@ -100,6 +100,9 @@ const SessionPlayer = z
     ship_id: z.string(),
     username: z.string(),
     character_variant: z.number().int(),
+    crew_role: z.number().int().nullable().default(null),
+    outfit_color: z.number().int().default(0),
+    hat: z.number().int().default(0),
     renewed: z.boolean(),
     expires_at: z.string(),
     position: z
@@ -120,6 +123,21 @@ export function touchSession(tokenHash: string, renewBefore: Date, newExpires: D
     "touch_session",
     { p_token_hash: tokenHash, p_renew_before: renewBefore.toISOString(), p_new_expires: newExpires.toISOString() },
     SessionPlayer,
+  );
+}
+
+/** Changes the player's look; the player id comes from the session, never the request. */
+export function setOutfit(args: { playerId: string; characterVariant: number; role: number | null; color: number; hat: number }) {
+  return call(
+    "set_outfit",
+    {
+      p_player_id: args.playerId,
+      p_character_variant: args.characterVariant,
+      p_crew_role: args.role,
+      p_outfit_color: args.color,
+      p_hat: args.hat,
+    },
+    z.enum(["OK", "INVALID", "NOT_FOUND"]),
   );
 }
 
@@ -175,7 +193,15 @@ export function samplePassengers(shipId: string, excludePlayerId: string | null,
   return call(
     "sample_passengers",
     { p_ship_id: shipId, p_exclude_player: excludePlayerId, p_limit: limit },
-    z.array(z.object({ username: z.string(), character_variant: z.number().int() })),
+    z.array(
+      z.object({
+        username: z.string(),
+        character_variant: z.number().int(),
+        crew_role: z.number().int().nullable().default(null),
+        outfit_color: z.number().int().default(0),
+        hat: z.number().int().default(0),
+      }),
+    ),
   );
 }
 

@@ -4,6 +4,8 @@ import { FOOT_BOX } from "../systems/walkability";
 import { PLAYER_SPEED, facingFrom, inputToVelocity, type Vec } from "../systems/movement";
 import { CHARACTER_FRAME, CHARACTER_TEXTURE, animKey, clampVariant, idleFrame } from "./characterAnims";
 import { NameLabel } from "./NameLabel";
+import { CharacterLayers } from "./CharacterLayers";
+import type { Outfit } from "../outfits";
 
 /**
  * The player's own character: an Arcade Physics sprite whose body is just its
@@ -13,11 +15,13 @@ import { NameLabel } from "./NameLabel";
 export class Player {
   readonly sprite: Phaser.Physics.Arcade.Sprite;
   private readonly label: NameLabel;
-  private readonly variant: number;
+  private readonly layers: CharacterLayers;
+  private variant: number;
   direction: Direction;
 
-  constructor(scene: Phaser.Scene, x: number, y: number, variant: number, username: string, direction: Direction) {
+  constructor(scene: Phaser.Scene, x: number, y: number, variant: number, outfit: Outfit, username: string, direction: Direction) {
     this.variant = clampVariant(variant);
+    this.layers = new CharacterLayers(scene, outfit);
     this.direction = direction;
     this.sprite = scene.physics.add.sprite(x, y, CHARACTER_TEXTURE, idleFrame(this.variant, direction));
     this.sprite.setOrigin(0.5, 1);
@@ -37,6 +41,14 @@ export class Player {
     return this.sprite.y;
   }
 
+  /** Changes the look straight away (after a Wardrobe save). */
+  setLook(variant: number, outfit: Outfit): void {
+    this.variant = clampVariant(variant);
+    this.layers.setOutfit(outfit);
+    const moving = this.sprite.anims.currentAnim?.key.includes("-walk-") ?? false;
+    this.sprite.anims.play(animKey(this.variant, moving ? "walk" : "idle", this.direction), true);
+  }
+
   /** Called every frame with the combined keyboard/joystick input. */
   applyInput(input: Vec): void {
     const v = inputToVelocity(input, PLAYER_SPEED);
@@ -50,10 +62,12 @@ export class Player {
   /** Called after physics has moved the body for this frame. */
   syncVisuals(depthBase: number): void {
     this.sprite.setDepth(depthBase + this.sprite.y / 10000);
+    this.layers.follow(this.sprite);
     this.label.follow(this.sprite.x, this.sprite.y - CHARACTER_FRAME.height);
   }
 
   destroy(): void {
+    this.layers.destroy();
     this.label.destroy();
     this.sprite.destroy();
   }
