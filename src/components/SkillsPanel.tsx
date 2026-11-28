@@ -34,15 +34,15 @@ export function SkillsPanel({ xp, parrot, onAbility, onClose }: Props) {
   }, [onClose]);
 
   return (
-    <div ref={ref} role="dialog" aria-modal="true" aria-labelledby="skills-title" className="pointer-events-auto absolute inset-0 z-30 flex items-center justify-center overflow-y-auto bg-black/55 px-3 py-6 [text-shadow:none]">
-      <div className="font-display w-full max-w-2xl rounded-sm border-4 border-[#3b2414] bg-[#f4ead5] p-4 text-[#3b2414] shadow-[0_6px_0_#3b2414] sm:p-6">
-        <div className="mb-3 flex items-start justify-between gap-3">
+    <div ref={ref} role="dialog" aria-modal="true" aria-labelledby="skills-title" onClick={(e) => e.target === e.currentTarget && onClose()} className="pointer-events-auto absolute inset-0 z-30 flex justify-center overflow-y-auto bg-black/55 px-3 py-6 [text-shadow:none]">
+      <div className="font-display relative my-auto h-fit w-full max-w-2xl rounded-sm border-4 border-[#3b2414] bg-[#f4ead5] p-4 text-[#3b2414] shadow-[0_6px_0_#3b2414] sm:p-6">
+        <div className="sticky -top-6 z-10 -mx-4 -mt-4 mb-3 flex items-start justify-between gap-3 border-b-2 border-[#3b2414]/20 bg-[#f4ead5] px-4 pt-4 pb-2 sm:-mx-6 sm:-mt-6 sm:px-6 sm:pt-6">
           <div>
             <h2 id="skills-title" className="font-heading text-2xl font-bold">Sea Skills</h2>
             <p className="text-base leading-snug">Do things around the ship to grow your skills. Each level unlocks something new.</p>
           </div>
-          <button type="button" onClick={onClose} className="shrink-0 rounded-full border-2 border-[#3b2414] bg-white/80 px-3 py-1 text-sm font-bold hover:bg-white">
-            Close
+          <button type="button" onClick={onClose} aria-label="Close skills" className="shrink-0 rounded-full border-2 border-[#3b2414] bg-white px-3 py-1 text-sm font-bold shadow-[0_2px_0_#3b2414] hover:bg-[#fff8e6] active:translate-y-0.5 active:shadow-none">
+            <span aria-hidden="true">✕</span> Close
           </button>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -94,6 +94,9 @@ export function SkillsPanel({ xp, parrot, onAbility, onClose }: Props) {
           })}
         </div>
         <p className="mt-3 text-xs text-[#5a3a22]">Your skills are saved in this browser.</p>
+        <button type="button" onClick={onClose} className="font-heading mt-3 w-full rounded-sm border-2 border-[#3b2414] bg-[#e0b266] py-2 text-base font-bold shadow-[0_2px_0_#3b2414] active:translate-y-0.5 active:shadow-none">
+          Back to the ship
+        </button>
       </div>
     </div>
   );
